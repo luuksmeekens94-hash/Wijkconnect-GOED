@@ -1,27 +1,35 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["wijkconnect"]
 }
 
 enum Role {
   VERWIJZER
   SOCIAAL
   ADMIN
+
+  @@schema("wijkconnect")
 }
 
 enum Gender {
   M
   V
   X
+
+  @@schema("wijkconnect")
 }
 
 enum Urgency {
   NORMAL
   HIGH
+
+  @@schema("wijkconnect")
 }
 
 enum ReferralStatus {
@@ -33,6 +41,8 @@ enum ReferralStatus {
   COMPLETED
   UNREACHABLE
   DECLINED
+
+  @@schema("wijkconnect")
 }
 
 enum Theme {
@@ -46,17 +56,23 @@ enum Theme {
   WERK_INKOMEN
   ZINGEVING
   OVERIG
+
+  @@schema("wijkconnect")
 }
 
 enum ResourceType {
   PROFESSIONAL
   COMMUNITY
+
+  @@schema("wijkconnect")
 }
 
 enum ResourceSource {
   VRAAGHULP
   WEGWIJZER024
   MANUAL
+
+  @@schema("wijkconnect")
 }
 
 model User {
@@ -73,6 +89,7 @@ model User {
   referralUpdates   ReferralUpdate[]
   notifications     Notification[]
   auditLogs         AuditLog[]
+  @@schema("wijkconnect")
 }
 
 model Referral {
@@ -97,6 +114,7 @@ model Referral {
 
   @@index([createdById, status])
   @@index([assignedToId, status])
+  @@schema("wijkconnect")
 }
 
 model ReferralTheme {
@@ -106,6 +124,7 @@ model ReferralTheme {
   referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
 
   @@unique([referralId, theme])
+  @@schema("wijkconnect")
 }
 
 model ReferralUpdate {
@@ -119,6 +138,7 @@ model ReferralUpdate {
   createdAt      DateTime        @default(now())
   referral       Referral         @relation(fields: [referralId], references: [id], onDelete: Cascade)
   updatedBy      User             @relation(fields: [updatedById], references: [id])
+  @@schema("wijkconnect")
 }
 
 model SocialResource {
@@ -143,6 +163,7 @@ model SocialResource {
   themes        ResourceTheme[]
 
   @@index([type, organization])
+  @@schema("wijkconnect")
 }
 
 model ResourceTheme {
@@ -152,6 +173,7 @@ model ResourceTheme {
   resource   SocialResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([resourceId, theme])
+  @@schema("wijkconnect")
 }
 
 model Notification {
@@ -166,6 +188,7 @@ model Notification {
   referral  Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
 
   @@index([userId, readAt])
+  @@schema("wijkconnect")
 }
 
 model AuditLog {
@@ -179,9 +202,11 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
+  @@schema("wijkconnect")
 }
 
 model CaseCounter {
   year  Int @id
   value Int @default(0)
+  @@schema("wijkconnect")
 }
