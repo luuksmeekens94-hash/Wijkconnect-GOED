@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VERWIJZER
+  SOCIAAL
+  ADMIN
+}
+
+enum Gender {
+  M
+  V
+  X
+}
+
+enum Urgency {
+  NORMAL
+  HIGH
+}
+
+enum ReferralStatus {
+  SENT
+  RECEIVED
+  PICKED_UP
+  IN_PROGRESS
+  REFERRED
+  COMPLETED
+  UNREACHABLE
+  DECLINED
+}
+
+enum Theme {
+  FINANCIELE_ZORGEN
+  EENZAAMHEID
+  DAGINVULLING_PARTICIPATIE
+  BEWEGINGSARMOEDE
+  PSYCHOSOCIAAL_STRESS
+  OPVOEDING_GEZIN
+  WONEN_HULPMIDDELEN
+  WERK_INKOMEN
+  ZINGEVING
+  OVERIG
+}
+
+enum ResourceType {
+  PROFESSIONAL
+  COMMUNITY
+}
+
+enum ResourceSource {
+  VRAAGHULP
+  WEGWIJZER024
+  MANUAL
+}
+
+model User {
+  id                String           @id @default(cuid())
+  email             String           @unique
+  passwordHash      String
+  name              String
+  organization      String
+  role              Role
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdReferrals  Referral[]       @relation("CreatedReferrals")
+  assignedReferrals Referral[]       @relation("AssignedReferrals")
+  referralUpdates   ReferralUpdate[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+}
+
+model Referral {
+  id               String           @id @default(cuid())
+  caseId           String           @unique
+  createdById      String
+  assignedToId     String
+  patientInitials  String
+  patientBirthYear Int
+  patientGender    Gender?
+  patientPhone     String?
+  urgency          Urgency          @default(NORMAL)
+  note             String?
+  status           ReferralStatus   @default(SENT)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  createdBy        User             @relation("CreatedReferrals", fields: [createdById], references: [id])
+  assignedTo       User             @relation("AssignedReferrals", fields: [assignedToId], references: [id])
+  themes           ReferralTheme[]
+  updates          ReferralUpdate[]
+  notifications    Notification[]
+
+  @@index([createdById, status])
+  @@index([assignedToId, status])
+}
+
+model ReferralTheme {
+  id         Int      @id @default(autoincrement())
+  referralId String
+  theme      Theme
+  referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  @@unique([referralId, theme])
+}
+
+model ReferralUpdate {
+  id             String          @id @default(cuid())
+  referralId     String
+  updatedById    String
+  previousStatus ReferralStatus?
+  newStatus      ReferralStatus
+  note           String?
+  handlerName    String?
+  createdAt      DateTime        @default(now())
+  referral       Referral         @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  updatedBy      User             @relation(fields: [updatedById], references: [id])
+}
+
+model SocialResource {
+  id            String          @id @default(cuid())
+  name          String
+  description   String
+  category      String
+  organization  String
+  contactEmail  String?
+  contactPhone  String?
+  address       String?
+  stadsdeel     String?
+  wijk          String?
+  targetGroup   String?
+  costs         String?
+  referralNeeded Boolean        @default(false)
+  type          ResourceType
+  source        ResourceSource
+  url           String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  themes        ResourceTheme[]
+
+  @@index([type, organization])
+}
+
+model ResourceTheme {
+  id         Int            @id @default(autoincrement())
+  resourceId String
+  theme      Theme
+  resource   SocialResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, theme])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  referralId String?
+  title     String
+  message   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referral  Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+}
+
+model CaseCounter {
+  year  Int @id
+  value Int @default(0)
+}
