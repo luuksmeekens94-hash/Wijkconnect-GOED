@@ -8,12 +8,12 @@ import { z } from "zod";
 import { requireRole, requireUser } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { generateCaseId } from "@/lib/case-id";
-import { favoriteRecipientEmails } from "@/lib/constants";
+import { favoriteRecipientEmails, getStatusMeta } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 const createReferralSchema = z.object({
-  assignedToId: z.string().min(1),
+  assignedToIds: z.array(z.string().min(1)).min(1, "Selecteer minimaal één ontvanger"),
   patientInitials: z.string().trim().min(2).max(4),
   patientBirthYear: z.coerce.number().min(1900).max(new Date().getFullYear()),
   patientGender: z.enum(["M", "V", "X"]).optional(),
@@ -26,7 +26,7 @@ const createReferralSchema = z.object({
 export async function createReferral(formData: FormData) {
   const user = await requireRole(["VERWIJZER"]);
   const parsed = createReferralSchema.safeParse({
-    assignedToId: formData.get("assignedToId"),
+    assignedToIds: formData.getAll("assignedToIds"),
     patientInitials: formData.get("patientInitials"),
     patientBirthYear: formData.get("patientBirthYear"),
     patientGender: formData.get("patientGender") || undefined,
@@ -40,58 +40,66 @@ export async function createReferral(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "Ongeldige invoer");
   }
 
-  const assignedTo = await prisma.user.findFirst({
-    where: { id: parsed.data.assignedToId, role: Role.SOCIAAL },
+  const assignedUsers = await prisma.user.findMany({
+    where: { id: { in: parsed.data.assignedToIds }, role: Role.SOCIAAL },
   });
 
-  if (!assignedTo) {
-    throw new Error("Ontvanger niet gevonden");
+  if (assignedUsers.length === 0) {
+    throw new Error("Geen geldige ontvangers gevonden");
   }
 
-  const caseId = await generateCaseId();
+  let firstReferralId: string | undefined;
 
-  const referral = await prisma.referral.create({
-    data: {
-      caseId,
-      createdById: user.id,
-      assignedToId: assignedTo.id,
-      patientInitials: parsed.data.patientInitials.toUpperCase(),
-      patientBirthYear: parsed.data.patientBirthYear,
-      patientGender: parsed.data.patientGender,
-      patientPhone: parsed.data.patientPhone,
-      urgency: parsed.data.urgency,
-      note: parsed.data.note,
-      themes: { create: parsed.data.themes.map((theme) => ({ theme })) },
-      updates: {
-        create: {
-          updatedById: user.id,
-          newStatus: ReferralStatus.SENT,
-          note: "Verwijzing aangemaakt",
+  for (const assignedTo of assignedUsers) {
+    const caseId = await generateCaseId();
+
+    const referral = await prisma.referral.create({
+      data: {
+        caseId,
+        createdById: user.id,
+        assignedToId: assignedTo.id,
+        patientInitials: parsed.data.patientInitials.toUpperCase(),
+        patientBirthYear: parsed.data.patientBirthYear,
+        patientGender: parsed.data.patientGender,
+        patientPhone: parsed.data.patientPhone,
+        urgency: parsed.data.urgency,
+        note: parsed.data.note,
+        themes: { create: parsed.data.themes.map((theme) => ({ theme })) },
+        updates: {
+          create: {
+            updatedById: user.id,
+            newStatus: ReferralStatus.SENT,
+            note: assignedUsers.length > 1
+              ? `Verwijzing aangemaakt (ook verzonden naar ${assignedUsers.filter((u) => u.id !== assignedTo.id).map((u) => u.name).join(", ")})`
+              : "Verwijzing aangemaakt",
+          },
         },
       },
-    },
-  });
+    });
 
-  await Promise.all([
-    createNotification({
-      userId: assignedTo.id,
-      referralId: referral.id,
-      title: "Nieuwe verwijzing",
-      message: `${caseId} is toegewezen aan jou.`,
-    }),
-    writeAuditLog({
-      userId: user.id,
-      action: "REFERRAL_CREATED",
-      entityType: "REFERRAL",
-      entityId: referral.id,
-      details: { caseId, assignedToId: assignedTo.id, themes: parsed.data.themes },
-    }),
-  ]);
+    if (!firstReferralId) firstReferralId = referral.id;
+
+    await Promise.all([
+      createNotification({
+        userId: assignedTo.id,
+        referralId: referral.id,
+        title: "Nieuwe verwijzing",
+        message: `${caseId} is toegewezen aan jou.`,
+      }),
+      writeAuditLog({
+        userId: user.id,
+        action: "REFERRAL_CREATED",
+        entityType: "REFERRAL",
+        entityId: referral.id,
+        details: { caseId, assignedToId: assignedTo.id, themes: parsed.data.themes },
+      }),
+    ]);
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/verwijzingen/nieuw");
   revalidatePath("/meldingen");
-  redirect(`/verwijzingen/${referral.id}`);
+  redirect(`/verwijzingen/${firstReferralId}`);
 }
 
 const updateReferralSchema = z.object({
@@ -147,7 +155,7 @@ export async function updateReferral(formData: FormData) {
       userId: referral.createdById,
       referralId: referral.id,
       title: "Status bijgewerkt",
-      message: `${referral.caseId} staat nu op ${parsed.data.status}.`,
+      message: `${referral.caseId} staat nu op ${getStatusMeta(parsed.data.status).label}.`,
     }),
     writeAuditLog({
       userId: user.id,

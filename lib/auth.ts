@@ -97,7 +97,7 @@ export async function requireUser() {
   return session.user;
 }
 
-export async function requireRole(roles: Array<"VERWIJZER" | "SOCIAAL" | "ADMIN">) {
+export async function requireRole(roles: Array<"VERWIJZER" | "SOCIAAL" | "ADMIN" | "PILOT">) {
   const user = await requireUser();
   if (!roles.includes(user.role)) {
     redirect("/dashboard");

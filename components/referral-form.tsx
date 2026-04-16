@@ -32,7 +32,15 @@ export function ReferralForm({
   preselectedRecipientId?: string;
 }) {
   const [selectedThemes, setSelectedThemes] = useState<Theme[]>([]);
-  const [selectedRecipientId, setSelectedRecipientId] = useState(preselectedRecipientId ?? favorites[0]?.id ?? recipients[0]?.id ?? "");
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(
+    preselectedRecipientId ? [preselectedRecipientId] : favorites.length > 0 ? [favorites[0].id] : recipients.length > 0 ? [recipients[0].id] : []
+  );
+
+  function toggleRecipient(id: string) {
+    setSelectedRecipientIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  }
 
   const suggestedResources = useMemo(() => {
     if (selectedThemes.length === 0) return resources.slice(0, 4);
@@ -70,22 +78,34 @@ export function ReferralForm({
         </div>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-900">2. Ontvanger</h3>
+            <h3 className="text-sm font-semibold text-slate-900">2. Ontvanger(s)</h3>
             <div className="flex flex-wrap gap-2">
               {favorites.map((favorite) => (
-                <button key={favorite.id} type="button" onClick={() => setSelectedRecipientId(favorite.id)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-sky-100 hover:text-sky-700">
-                  Verwijs naar {favorite.name.split(" ")[0]}
+                <button key={favorite.id} type="button" onClick={() => toggleRecipient(favorite.id)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${selectedRecipientIds.includes(favorite.id) ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-600"}`}>
+                  {favorite.name.split(" ")[0]}
                 </button>
               ))}
             </div>
           </div>
-          <select name="assignedToId" required value={selectedRecipientId} onChange={(event) => setSelectedRecipientId(event.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400">
-            {recipients.map((recipient) => (
-              <option key={recipient.id} value={recipient.id}>
-                {recipient.name} - {recipient.organization}
-              </option>
-            ))}
-          </select>
+          <p className="text-xs text-slate-500">Selecteer een of meerdere ontvangers. Bij meerdere wordt per ontvanger een aparte verwijzing aangemaakt.</p>
+          <div className="grid gap-2 md:grid-cols-2">
+            {recipients.map((recipient) => {
+              const checked = selectedRecipientIds.includes(recipient.id);
+              return (
+                <label key={recipient.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm transition ${checked ? "border-sky-400 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}>
+                  <input
+                    type="checkbox"
+                    name="assignedToIds"
+                    value={recipient.id}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                    checked={checked}
+                    onChange={() => toggleRecipient(recipient.id)}
+                  />
+                  <span>{recipient.name} — {recipient.organization}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-slate-900">3. Patiëntgegevens</h3>
@@ -141,7 +161,7 @@ export function ReferralForm({
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-300">Favorieten</p>
           <div className="mt-4 space-y-3">
             {favorites.map((favorite) => (
-              <button key={favorite.id} type="button" onClick={() => setSelectedRecipientId(favorite.id)} className={`w-full rounded-2xl border px-4 py-3 text-left transition ${selectedRecipientId === favorite.id ? "border-sky-400 bg-sky-500/15" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
+              <button key={favorite.id} type="button" onClick={() => toggleRecipient(favorite.id)} className={`w-full rounded-2xl border px-4 py-3 text-left transition ${selectedRecipientIds.includes(favorite.id) ? "border-sky-400 bg-sky-500/15" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
                 <p className="font-medium">{favorite.name}</p>
                 <p className="text-sm text-slate-300">{favorite.organization}</p>
               </button>

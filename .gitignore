@@ -3,6 +3,5 @@ node_modules/
 *.db
 .env
 .env.local
-.vercel
-
+.env-val
 .vercel

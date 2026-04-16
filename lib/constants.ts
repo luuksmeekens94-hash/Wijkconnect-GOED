@@ -35,13 +35,14 @@ export const roleLabels: Record<Role, string> = {
   VERWIJZER: "Verwijzer",
   SOCIAAL: "Sociaal professional",
   ADMIN: "Beheerder",
+  PILOT: "Pilot / meekijken",
 };
 
 export const birthYears = Array.from({ length: 100 }, (_, index) => new Date().getFullYear() - index);
 
 export const favoriteRecipientEmails = [
-  "andrea@bindkracht10.nl",
-  "margot@buurtteamsvolwassenen.nl",
+  "andrea.olfen@bindkracht10.nl",
+  "margot.vandelft@buurtteamsvolwassenen.nl",
 ];
 
 export function getThemeLabel(theme: Theme) {

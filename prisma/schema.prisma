@@ -13,6 +13,7 @@ enum Role {
   VERWIJZER
   SOCIAAL
   ADMIN
+  PILOT
 
   @@schema("wijkconnect")
 }

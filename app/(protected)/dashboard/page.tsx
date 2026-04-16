@@ -3,7 +3,7 @@ import { ReferralStatus } from "@prisma/client";
 import { StatusBadge } from "@/components/status-badge";
 import { requireUser } from "@/lib/auth";
 import { getFavoriteRecipients, updateReferral } from "@/lib/actions";
-import { getThemeLabel, urgencyLabels } from "@/lib/constants";
+import { getStatusMeta, getThemeLabel, urgencyLabels } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 
@@ -15,16 +15,17 @@ const openStatuses: ReferralStatus[] = [
   ReferralStatus.REFERRED,
   ReferralStatus.UNREACHABLE,
 ];
-const unpickedStatuses: ReferralStatus[] = [ReferralStatus.SENT, ReferralStatus.RECEIVED];
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { filter?: string; q?: string };
+  searchParams: { filter?: string; q?: string; from?: string; to?: string };
 }) {
   const user = await requireUser();
   const query = searchParams.q?.trim() ?? "";
   const filter = searchParams.filter ?? "all";
+  const from = searchParams.from ?? "";
+  const to = searchParams.to ?? "";
 
   if (user.role === "VERWIJZER") {
     const where = {
@@ -133,30 +134,37 @@ export default async function DashboardPage({
   if (user.role === "SOCIAAL") {
     const referrals = await prisma.referral.findMany({
       where: {
-        assignedToId: user.id,
         ...(query
           ? {
-              OR: [{ caseId: { contains: query } }, { patientInitials: { contains: query } }, { createdBy: { name: { contains: query } } }],
+              OR: [
+                { caseId: { contains: query } },
+                { patientInitials: { contains: query } },
+                { createdBy: { name: { contains: query } } },
+                { assignedTo: { name: { contains: query } } },
+              ],
             }
           : {}),
       },
       include: {
         createdBy: true,
+        assignedTo: true,
         themes: true,
       },
       orderBy: { updatedAt: "desc" },
     });
 
+    const assignedToMe = referrals.filter((item) => item.assignedToId === user.id);
+
     return (
       <div className="space-y-6">
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Binnenkomend</p>
+            <p className="text-sm text-slate-500">Zichtbare casussen</p>
             <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.length}</p>
           </div>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Nog niet opgepakt</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.filter((item) => unpickedStatuses.includes(item.status)).length}</p>
+            <p className="text-sm text-slate-500">Aan mij toegewezen</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{assignedToMe.length}</p>
           </div>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">Afgerond</p>
@@ -166,11 +174,12 @@ export default async function DashboardPage({
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Binnenkomende verwijzingen</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Status en terugkoppeling beheren</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Sociaal domein overzicht</p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Overzicht van casussen</h2>
+              <p className="mt-2 text-sm text-slate-500">Bekijk lopende casussen en terugkoppelingen binnen het sociaal domein. Alleen de toegewezen professional kan wijzigingen opslaan.</p>
             </div>
             <form>
-              <input name="q" defaultValue={query} placeholder="Zoek op casus of verwijzer" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 lg:w-80" />
+              <input name="q" defaultValue={query} placeholder="Zoek op casus, verwijzer of behandelaar" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 lg:w-80" />
             </form>
           </div>
           <div className="mt-6 grid gap-4">
@@ -185,27 +194,198 @@ export default async function DashboardPage({
                       {referral.patientInitials} ({referral.patientBirthYear}) • {referral.createdBy.name} • {urgencyLabels[referral.urgency]}
                     </p>
                     <p className="text-sm text-slate-500">{referral.themes.map((item) => getThemeLabel(item.theme)).join(", ")}</p>
+                    <p className="text-sm text-slate-500">
+                      Toegewezen aan: {referral.assignedTo.name}
+                      {referral.assignedToId === user.id ? " (jij)" : ""}
+                    </p>
                   </div>
                   <StatusBadge status={referral.status} />
                 </div>
-                <form action={updateReferral} className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr_220px_150px]">
-                  <input type="hidden" name="referralId" value={referral.id} />
-                  <select name="status" defaultValue={referral.status} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400">
-                    {Object.values(ReferralStatus).map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                  <input name="feedback" maxLength={500} placeholder="Terugkoppeling of notitie" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                  <input name="handlerName" maxLength={100} placeholder="Naam behandelaar" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                  <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
-                    Opslaan
-                  </button>
-                </form>
+                {referral.assignedToId === user.id ? (
+                  <form action={updateReferral} className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr_220px_150px]">
+                    <input type="hidden" name="referralId" value={referral.id} />
+                    <select name="status" defaultValue={referral.status} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400">
+                      {Object.values(ReferralStatus).map((status) => (
+                        <option key={status} value={status}>
+                          {getStatusMeta(status).label}
+                        </option>
+                      ))}
+                    </select>
+                    <input name="feedback" maxLength={500} placeholder="Terugkoppeling of notitie" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                    <input name="handlerName" maxLength={100} placeholder="Naam behandelaar" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                    <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
+                      Opslaan
+                    </button>
+                  </form>
+                ) : (
+                  <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-slate-600">
+                    Deze casus is read-only voor jou. Open de casus om de volledige terugkoppeling en historie te bekijken.
+                  </div>
+                )}
               </div>
             ))}
-            {referrals.length === 0 ? <p className="text-sm text-slate-500">Er zijn nog geen verwijzingen aan jou toegewezen.</p> : null}
+            {referrals.length === 0 ? <p className="text-sm text-slate-500">Er zijn nog geen zichtbare verwijzingen gevonden.</p> : null}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (user.role === "PILOT") {
+    const referrals = await prisma.referral.findMany({
+      where: {
+        ...(query
+          ? {
+              OR: [
+                { caseId: { contains: query } },
+                { patientInitials: { contains: query } },
+                { createdBy: { name: { contains: query } } },
+                { assignedTo: { name: { contains: query } } },
+              ],
+            }
+          : {}),
+        ...(filter === "open" ? { status: { in: openStatuses } } : filter === "completed" ? { status: ReferralStatus.COMPLETED } : {}),
+      },
+      include: {
+        createdBy: true,
+        assignedTo: true,
+        themes: true,
+        updates: true,
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const [userCount, resourceCount, recentAuditLogs] = await Promise.all([
+      prisma.user.count(),
+      prisma.socialResource.count(),
+      prisma.auditLog.findMany({
+        take: 8,
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const openCount = referrals.filter((item) => openStatuses.includes(item.status)).length;
+    const completedCount = referrals.filter((item) => item.status === ReferralStatus.COMPLETED).length;
+
+    return (
+      <div className="space-y-6">
+        <section className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-slate-500">Totaal verwijzingen</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.length}</p>
+          </div>
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-slate-500">Open casussen</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{openCount}</p>
+          </div>
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-slate-500">Afgerond</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{completedCount}</p>
+          </div>
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-slate-500">Gebruikers / sociale kaart</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{userCount} / {resourceCount}</p>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Pilotoverzicht</p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Alle verwijzingen en terugkoppelingen</h2>
+              <p className="mt-2 text-sm text-slate-500">Read-only overzicht voor meekijken, evalueren en exporteren.</p>
+            </div>
+            <form className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ["all", "Alle"],
+                  ["open", "Open"],
+                  ["completed", "Afgerond"],
+                ].map(([value, label]) => (
+                  <Link key={value} href={`/dashboard?filter=${value}${query ? `&q=${encodeURIComponent(query)}` : ""}`} className={`rounded-full px-4 py-2 text-sm font-medium transition ${filter === value ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+              <input name="q" defaultValue={query} placeholder="Zoek op casus, verwijzer of ontvanger" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 lg:w-80" />
+            </form>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 p-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Data-export</p>
+            <h3 className="mt-2 text-xl font-semibold text-slate-900">Download pilotdata</h3>
+            <p className="mt-2 text-sm text-slate-600">Gebruik CSV voor analyse en PDF voor delen of bespreken.</p>
+            <form method="get" className="mt-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:max-w-2xl">
+                <label className="space-y-2 text-sm text-slate-700">
+                  <span>Van datum</span>
+                  <input name="from" type="date" defaultValue={from} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
+                </label>
+                <label className="space-y-2 text-sm text-slate-700">
+                  <span>Tot datum</span>
+                  <input name="to" type="date" defaultValue={to} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button formAction="/api/admin/export/referrals?format=csv" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+                  Verwijzingen CSV
+                </button>
+                <button formAction="/api/admin/export/referrals?format=pdf" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
+                  Verwijzingen PDF
+                </button>
+                <button formAction="/api/admin/export/referral-updates?format=csv" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700">
+                  Terugkoppelingen CSV
+                </button>
+                <button formAction="/api/admin/export/referral-updates?format=pdf" className="rounded-full bg-sky-100 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-200">
+                  Terugkoppelingen PDF
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-100">
+            <div className="grid grid-cols-1 divide-y divide-slate-100">
+              {referrals.map((referral) => (
+                <Link key={referral.id} href={`/verwijzingen/${referral.id}`} className="grid gap-3 bg-white px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[1fr_0.95fr_0.95fr_1fr_0.7fr] md:items-center">
+                  <div>
+                    <p className="font-semibold text-slate-900">{referral.caseId}</p>
+                    <p className="text-sm text-slate-500">{referral.patientInitials} ({referral.patientBirthYear})</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{referral.createdBy.name}</p>
+                    <p className="text-sm text-slate-500">Verwijzer</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{referral.assignedTo.name}</p>
+                    <p className="text-sm text-slate-500">Ontvanger</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">{referral.themes.map((item) => getThemeLabel(item.theme)).join(", ")}</p>
+                    <p className="text-sm text-slate-500">{referral.updates.length} terugkoppelingen</p>
+                  </div>
+                  <div className="space-y-2 md:justify-self-end">
+                    <p className="text-sm text-slate-500">{formatDateTime(referral.updatedAt)}</p>
+                    <StatusBadge status={referral.status} />
+                  </div>
+                </Link>
+              ))}
+              {referrals.length === 0 ? <p className="px-5 py-10 text-sm text-slate-500">Nog geen verwijzingen gevonden voor deze filter.</p> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Laatste acties</p>
+          <div className="mt-6 space-y-3">
+            {recentAuditLogs.map((log) => (
+              <div key={log.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="font-medium text-slate-900">{log.action}</p>
+                <p className="text-sm text-slate-500">
+                  {log.user?.name ?? "Systeem"} • {log.entityType} • {formatDateTime(log.createdAt)}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
       </div>
@@ -245,7 +425,7 @@ export default async function DashboardPage({
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Audit log</p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-900">Laatste acties</h2>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href="/admin/gebruikers" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
               Gebruikers beheren
             </Link>
@@ -253,6 +433,37 @@ export default async function DashboardPage({
               Sociale kaart beheren
             </Link>
           </div>
+        </div>
+        <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 p-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Data-export</p>
+          <h3 className="mt-2 text-xl font-semibold text-slate-900">Download verwijzingen en terugkoppelingen</h3>
+          <p className="mt-2 text-sm text-slate-600">Gebruik CSV voor analyse in Excel of Power BI, en PDF voor delen of archiveren.</p>
+          <form method="get" className="mt-4 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:max-w-2xl">
+              <label className="space-y-2 text-sm text-slate-700">
+                <span>Van datum</span>
+                <input name="from" type="date" defaultValue={from} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
+              </label>
+              <label className="space-y-2 text-sm text-slate-700">
+                <span>Tot datum</span>
+                <input name="to" type="date" defaultValue={to} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button formAction="/api/admin/export/referrals?format=csv" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+                Verwijzingen CSV
+              </button>
+              <button formAction="/api/admin/export/referrals?format=pdf" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
+                Verwijzingen PDF
+              </button>
+              <button formAction="/api/admin/export/referral-updates?format=csv" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700">
+                Terugkoppelingen CSV
+              </button>
+              <button formAction="/api/admin/export/referral-updates?format=pdf" className="rounded-full bg-sky-100 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-200">
+                Terugkoppelingen PDF
+              </button>
+            </div>
+          </form>
         </div>
         <div className="mt-6 space-y-3">
           {recentAuditLogs.map((log) => (

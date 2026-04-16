@@ -4,7 +4,7 @@ import { ReferralStatus } from "@prisma/client";
 import { StatusBadge } from "@/components/status-badge";
 import { requireUser } from "@/lib/auth";
 import { updateReferral } from "@/lib/actions";
-import { getThemeLabel, urgencyLabels } from "@/lib/constants";
+import { getStatusMeta, getThemeLabel, urgencyLabels } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 
@@ -27,8 +27,11 @@ export default async function ReferralDetailPage({ params }: { params: { id: str
 
   const allowed =
     user.role === "ADMIN" ||
+    user.role === "PILOT" ||
+    user.role === "SOCIAAL" ||
     referral.createdById === user.id ||
     referral.assignedToId === user.id;
+  const canEditReferral = user.role === "ADMIN" || referral.assignedToId === user.id;
 
   if (!allowed) notFound();
 
@@ -78,22 +81,33 @@ export default async function ReferralDetailPage({ params }: { params: { id: str
       <section className="space-y-6">
         {(user.role === "SOCIAAL" || user.role === "ADMIN") && (
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Status bijwerken</p>
-            <form action={updateReferral} className="mt-4 space-y-3">
-              <input type="hidden" name="referralId" value={referral.id} />
-              <select name="status" defaultValue={referral.status} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400">
-                {Object.values(ReferralStatus).map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <input name="handlerName" placeholder="Naam behandelaar" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-              <textarea name="feedback" rows={4} maxLength={500} placeholder="Terugkoppeling voor verwijzer" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-              <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
-                Update opslaan
-              </button>
-            </form>
+            {canEditReferral ? (
+              <>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Status bijwerken</p>
+                <form action={updateReferral} className="mt-4 space-y-3">
+                  <input type="hidden" name="referralId" value={referral.id} />
+                  <select name="status" defaultValue={referral.status} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400">
+                    {Object.values(ReferralStatus).map((status) => (
+                      <option key={status} value={status}>
+                        {getStatusMeta(status).label}
+                      </option>
+                    ))}
+                  </select>
+                  <input name="handlerName" placeholder="Naam behandelaar" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                  <textarea name="feedback" rows={4} maxLength={500} placeholder="Terugkoppeling voor verwijzer" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                  <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
+                    Update opslaan
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Casusoverzicht</p>
+                <p className="mt-3 rounded-3xl bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+                  Deze casus is aan {referral.assignedTo.name} toegewezen. Je kunt de details en terugkoppelingen wel bekijken, maar alleen de toegewezen professional kan wijzigingen opslaan.
+                </p>
+              </>
+            )}
           </div>
         )}
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">

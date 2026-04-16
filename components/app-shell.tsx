@@ -21,6 +21,10 @@ const navByRole: Record<Role, Array<{ href: string; label: string; icon: typeof 
     { href: "/admin/gebruikers", label: "Gebruikers", icon: Settings },
     { href: "/admin/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
   ],
+  PILOT: [
+    { href: "/dashboard", label: "Pilotoverzicht", icon: Shield },
+    { href: "/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
+  ],
 };
 
 export async function AppShell({

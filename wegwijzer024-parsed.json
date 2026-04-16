@@ -1,0 +1,380 @@
+[
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/chi-kung-weezenhof/",
+    "title": "Chi-Kung Weezenhof",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Weezenhof",
+    "targetGroup": "Volwassenen",
+    "costs": "Onbekend",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Tai-Chi en Chi-Kung met Tabitha",
+    "contactEmail": "info@chikung-taichi.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/otago-valpreventie-fysiotherapie-dukenburg/",
+    "title": "Otago valpreventie Fysiotherapie Dukenburg",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "targetGroup": "Senioren",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Fysiotherapie Dukenburg",
+    "contactEmail": "info@fysiotherapiedukenburg.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/de-heeren-van-nijmegen-wooncomplex/",
+    "title": "De Heeren van Nijmegen, wooncomplex",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Zwanenveld",
+    "targetGroup": "Senioren",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Woonwaarts",
+    "contactEmail": "info@woonwaarts.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "WONEN_HULPMIDDELEN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/beweeg-je-fit-dukenburg/",
+    "title": "Beweeg-Je-Fit Dukenburg",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Dukenburg",
+    "targetGroup": "Kinderen",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "GGD Gelderland-Zuid",
+    "contactEmail": "daydinli@ggdgelderlandzuid.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/onvergetelijke-kookclub/",
+    "title": "Onvergetelijke Kookclub",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Meijhorst",
+    "targetGroup": "Volwassenen",
+    "costs": "Prijs staat op de website van aanbieder",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Alzheimer Nederland Regio Nijmegen",
+    "contactEmail": "kookclub.nijmegen@alzheimervrijwilligers.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "DAGINVULLING_PARTICIPATIE"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/buikdanslessen/",
+    "title": "Buikdanslessen",
+    "description": "Stadsdeel: Dukenburg, Oost, Zuid",
+    "stadsdeel": "Dukenburg, Oost, Zuid",
+    "wijk": "Dukenburg, Hatert en Hengstdal",
+    "targetGroup": "Volwassenen",
+    "costs": "Onbekend",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "eMeM Bellydance",
+    "contactEmail": "m.minnema@inter.nl.net",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "BEWEGINGSARMOEDE"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/kringloopwinkel-terre-des-hommes/",
+    "title": "Kringloopwinkel Terre des Hommes",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Centrum",
+    "targetGroup": "Volwassenen",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Terre des Hommes",
+    "contactEmail": "winkel.nijmegen@tdh.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "FINANCIELE_ZORGEN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/ontmoetingscafe/",
+    "title": "Ontmoetingscafé",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Meijhorst",
+    "targetGroup": "Kinderen, Jongeren, Volwassenen",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "De Ontmoetingskerk",
+    "contactEmail": "secretariaat@ontmoetingskerk.net",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "EENZAAMHEID"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/moestuingroep-de-groene-tol/",
+    "title": "Moestuingroep de Groene Tol",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Tolhuis",
+    "targetGroup": "Volwassenen",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Van Tuin Tot Bord",
+    "contactEmail": "romilda.vanderwal@vantuintotbord.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "DAGINVULLING_PARTICIPATIE",
+      "WONEN_HULPMIDDELEN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/kringloopwinkel-ries-ruimt/",
+    "title": "Kringloopwinkel Ries Ruimt",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Zwanenveld",
+    "targetGroup": "Volwassenen",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Ries Ruimt",
+    "contactEmail": "info@riesruimt.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "FINANCIELE_ZORGEN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/duiken/",
+    "title": "Duiken",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Meijhorst",
+    "targetGroup": "Kinderen, Jongeren, Volwassenen",
+    "costs": "Prijs staat op de website van aanbieder",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "ScubaXperience",
+    "contactEmail": "wegwijzer024@sterker.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/afhaalmaaltijden/",
+    "title": "Afhaalmaaltijden",
+    "description": "Stadsdeel: Lindenholt",
+    "stadsdeel": "Lindenholt",
+    "wijk": "'t Acker",
+    "targetGroup": "Volwassenen",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Wijkatelier Lindenholt",
+    "contactEmail": "welkom@wijkatelierlindenholt.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/goede-dag-neerbosch-oost/",
+    "title": "Goede Dag Neerbosch-Oost",
+    "description": "Stadsdeel: Nieuw-West",
+    "stadsdeel": "Nieuw-West",
+    "wijk": "Neerbosch-Oost",
+    "targetGroup": "Senioren",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Goede Dag",
+    "contactEmail": "info@goededagnijmegen.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/stoelgym-tolhuis/",
+    "title": "Stoelgym Tolhuis",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Tolhuis",
+    "targetGroup": "Volwassenen",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Fysiotherapie Dukenburg",
+    "contactEmail": "info@fysiotherapiedukenburg.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "BEWEGINGSARMOEDE",
+      "WONEN_HULPMIDDELEN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/schaatsen-op-maat/",
+    "title": "Schaatsen op Maat",
+    "description": "Stadsdeel: Stadsbreed",
+    "stadsdeel": "Stadsbreed",
+    "wijk": "Dukenburg",
+    "targetGroup": "Kinderen, Jongeren",
+    "costs": "Prijs staat op de website van aanbieder",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Filters",
+    "contactEmail": "secretaris@nijmeegseschaatsvereniging.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/biljarten-hatert/",
+    "title": "Biljarten Hatert",
+    "description": "Stadsdeel: Zuid",
+    "stadsdeel": "Zuid",
+    "wijk": "Hatert",
+    "targetGroup": "Volwassenen",
+    "costs": "Onbekend",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Filters",
+    "contactEmail": "hatert@nijmegen.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/duofietsen-park-malderborgh/",
+    "title": "Duofietsen Park Malderborgh",
+    "description": "Stadsdeel: Zuid",
+    "stadsdeel": "Zuid",
+    "wijk": "Hatert",
+    "targetGroup": "Senioren",
+    "costs": "Eigen bijdrage",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "ZZG zorggroep",
+    "contactEmail": "bijdeburen@zzgzorggroep.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "BEWEGINGSARMOEDE"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/voorleespret-voor-peuters/",
+    "title": "Voorleespret voor peuters",
+    "description": "Stadsdeel: Stadsbreed",
+    "stadsdeel": "Stadsbreed",
+    "targetGroup": "Kinderen",
+    "costs": "Gratis",
+    "address": "",
+    "organization": "Bibliotheek Gelderland Zuid",
+    "contactEmail": "info@obgz.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OPVOEDING_GEZIN"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/sociaal-spreekuur/",
+    "title": "Sociaal spreekuur",
+    "description": "Stadsdeel: Dukenburg",
+    "stadsdeel": "Dukenburg",
+    "wijk": "Meijhorst",
+    "targetGroup": "Volwassenen",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Huisartsenpraktijk De Schakel",
+    "contactEmail": "wegwijzer024@sterker.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  },
+  {
+    "url": "https://wegwijzer024.nl/activiteiten/fotograferen/",
+    "title": "Fotograferen",
+    "description": "Stadsdeel: Zuid",
+    "stadsdeel": "Zuid",
+    "wijk": "Hatert",
+    "targetGroup": "Jongeren, Volwassenen",
+    "costs": "Gratis",
+    "referralNeeded": "Geen verwijzing nodig",
+    "address": "",
+    "organization": "Stip Hatert",
+    "contactEmail": "anne.klusman@stipnijmegen.nl",
+    "contactPhone": "09906245",
+    "categories": [],
+    "needsReferral": false,
+    "themes": [
+      "OVERIG"
+    ]
+  }
+]
