@@ -83,12 +83,13 @@ function getAreaBadge(resource: { stadsdeel: string | null; wijk: string | null 
 export default async function SocialMapPage({
   searchParams,
 }: {
-  searchParams: { q?: string; theme?: string; type?: string };
+  searchParams: Promise<{ q?: string; theme?: string; type?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   await requireUser();
-  const q = searchParams.q?.trim() ?? "";
-  const theme = searchParams.theme;
-  const type = searchParams.type;
+  const q = resolvedSearchParams.q?.trim() ?? "";
+  const theme = resolvedSearchParams.theme;
+  const type = resolvedSearchParams.type;
 
   const resources = await prisma.socialResource.findMany({
     where: {

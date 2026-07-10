@@ -199,14 +199,24 @@ export async function markAllNotificationsRead() {
   revalidatePath("/dashboard");
 }
 
-const userSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(2),
-  email: z.string().email(),
-  organization: z.string().min(2),
-  role: z.nativeEnum(Role),
-  password: z.string().min(10).optional(),
-});
+const userSchema = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().min(2),
+    email: z.string().email(),
+    organization: z.string().min(2),
+    role: z.nativeEnum(Role),
+    password: z.string().min(10).optional(),
+  })
+  .superRefine((user, context) => {
+    if (!user.id && !user.password) {
+      context.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: "Vul een wachtwoord van minimaal 10 tekens in",
+      });
+    }
+  });
 
 export async function saveUser(formData: FormData) {
   const admin = await requireRole(["ADMIN"]);
@@ -237,13 +247,17 @@ export async function saveUser(formData: FormData) {
       },
     });
   } else {
+    if (!passwordHash) {
+      throw new Error("Vul een wachtwoord van minimaal 10 tekens in");
+    }
+
     await prisma.user.create({
       data: {
         name: parsed.data.name,
         email: parsed.data.email.toLowerCase(),
         organization: parsed.data.organization,
         role: parsed.data.role,
-        passwordHash: passwordHash ?? (await bcrypt.hash("WijkConnect2026!", 10)),
+        passwordHash,
       },
     });
   }
@@ -256,6 +270,18 @@ export async function saveUser(formData: FormData) {
     details: { email: parsed.data.email.toLowerCase(), role: parsed.data.role },
   });
 
+  revalidatePath("/admin/gebruikers");
+}
+
+export async function toggleUserActive(formData: FormData) {
+  const admin = await requireRole(["ADMIN"]);
+  const userId = String(formData.get("userId") ?? "");
+  const active = formData.get("active") === "true";
+  if (!userId) throw new Error("Gebruiker ontbreekt");
+  if (userId === admin.id && !active) throw new Error("Je kunt je eigen beheeraccount niet deactiveren");
+
+  await prisma.user.update({ where: { id: userId }, data: { isActive: active } });
+  await writeAuditLog({ userId: admin.id, action: active ? "USER_ACTIVATED" : "USER_DEACTIVATED", entityType: "USER", entityId: userId });
   revalidatePath("/admin/gebruikers");
 }
 

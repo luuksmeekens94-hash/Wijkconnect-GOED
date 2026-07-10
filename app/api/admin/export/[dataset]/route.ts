@@ -8,18 +8,19 @@ const allowedFormats: ExportFormat[] = ["csv", "pdf"];
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { dataset: string } },
+  { params }: { params: Promise<{ dataset: string }> },
 ) {
   const session = await auth();
   if (!session?.user) {
     return new Response("Niet ingelogd", { status: 401 });
   }
 
-  if (!["ADMIN", "PILOT"].includes(session.user.role)) {
+  if (session.user.role !== "ADMIN") {
     return new Response("Geen toegang", { status: 403 });
   }
 
-  const dataset = params.dataset as ExportDataset;
+  const { dataset: datasetParam } = await params;
+  const dataset = datasetParam as ExportDataset;
   if (!allowedDatasets.includes(dataset)) {
     return new Response("Onbekende export", { status: 404 });
   }

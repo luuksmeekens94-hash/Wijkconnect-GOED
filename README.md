@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+WijkConnect ondersteunt een beveiligde verwijsworkflow en een projectmonitoringmodule voor het beweegspreekuur en sociaal spreekuur. Zie [ADMIN-MONITORING-ONTWERP.md](./ADMIN-MONITORING-ONTWERP.md) voor rollen, datadefinities, weekafsluiting, vragenlijsten en ingebruikname.
+
 ## Getting Started
 
 First, run the development server:

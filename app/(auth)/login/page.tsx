@@ -21,8 +21,8 @@ export default async function LoginPage() {
               <p className="mt-2 text-sm text-slate-300">Nieuwe verwijzing aanmaken</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <p className="text-3xl font-semibold">3 rollen</p>
-              <p className="mt-2 text-sm text-slate-300">Verwijzer, sociaal professional en beheer</p>
+              <p className="text-3xl font-semibold">Rolvast</p>
+              <p className="mt-2 text-sm text-slate-300">Iedere gebruiker ziet alleen wat nodig is</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
               <p className="text-3xl font-semibold">100%</p>
@@ -37,9 +37,6 @@ export default async function LoginPage() {
             <p className="mt-2 text-sm text-slate-500">Gebruik je professionele account om verder te gaan.</p>
           </div>
           <LoginForm />
-          <div className="mt-8 rounded-3xl bg-sky-50 p-4 text-sm text-slate-600">
-            Testwachtwoord voor pilotaccounts: <span className="font-semibold text-slate-900">WijkConnect2026!</span>
-          </div>
         </section>
       </div>
     </div>
