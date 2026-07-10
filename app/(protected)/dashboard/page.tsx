@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ReferralStatus } from "@prisma/client";
 import { StatusBadge } from "@/components/status-badge";
 import { requireUser } from "@/lib/auth";
@@ -19,13 +20,18 @@ const openStatuses: ReferralStatus[] = [
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { filter?: string; q?: string; from?: string; to?: string };
+  searchParams: Promise<{ filter?: string; q?: string; from?: string; to?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const user = await requireUser();
-  const query = searchParams.q?.trim() ?? "";
-  const filter = searchParams.filter ?? "all";
-  const from = searchParams.from ?? "";
-  const to = searchParams.to ?? "";
+  const query = resolvedSearchParams.q?.trim() ?? "";
+  const filter = resolvedSearchParams.filter ?? "all";
+  const from = resolvedSearchParams.from ?? "";
+  const to = resolvedSearchParams.to ?? "";
+
+  if (user.role === "DATA_MANAGER") {
+    redirect("/monitoring");
+  }
 
   if (user.role === "VERWIJZER") {
     const where = {
@@ -134,6 +140,7 @@ export default async function DashboardPage({
   if (user.role === "SOCIAAL") {
     const referrals = await prisma.referral.findMany({
       where: {
+        assignedToId: user.id,
         ...(query
           ? {
               OR: [
@@ -153,8 +160,6 @@ export default async function DashboardPage({
       orderBy: { updatedAt: "desc" },
     });
 
-    const assignedToMe = referrals.filter((item) => item.assignedToId === user.id);
-
     return (
       <div className="space-y-6">
         <section className="grid gap-4 md:grid-cols-3">
@@ -164,7 +169,7 @@ export default async function DashboardPage({
           </div>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">Aan mij toegewezen</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{assignedToMe.length}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.length}</p>
           </div>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">Afgerond</p>
@@ -176,7 +181,7 @@ export default async function DashboardPage({
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Sociaal domein overzicht</p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Overzicht van casussen</h2>
-              <p className="mt-2 text-sm text-slate-500">Bekijk lopende casussen en terugkoppelingen binnen het sociaal domein. Alleen de toegewezen professional kan wijzigingen opslaan.</p>
+              <p className="mt-2 text-sm text-slate-500">Bekijk je eigen toegewezen casussen en terugkoppelingen.</p>
             </div>
             <form>
               <input name="q" defaultValue={query} placeholder="Zoek op casus, verwijzer of behandelaar" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 lg:w-80" />
@@ -201,27 +206,21 @@ export default async function DashboardPage({
                   </div>
                   <StatusBadge status={referral.status} />
                 </div>
-                {referral.assignedToId === user.id ? (
-                  <form action={updateReferral} className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr_220px_150px]">
-                    <input type="hidden" name="referralId" value={referral.id} />
-                    <select name="status" defaultValue={referral.status} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400">
-                      {Object.values(ReferralStatus).map((status) => (
-                        <option key={status} value={status}>
-                          {getStatusMeta(status).label}
-                        </option>
-                      ))}
-                    </select>
-                    <input name="feedback" maxLength={500} placeholder="Terugkoppeling of notitie" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                    <input name="handlerName" maxLength={100} placeholder="Naam behandelaar" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                    <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
-                      Opslaan
-                    </button>
-                  </form>
-                ) : (
-                  <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-slate-600">
-                    Deze casus is read-only voor jou. Open de casus om de volledige terugkoppeling en historie te bekijken.
-                  </div>
-                )}
+                <form action={updateReferral} className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr_220px_150px]">
+                  <input type="hidden" name="referralId" value={referral.id} />
+                  <select name="status" defaultValue={referral.status} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400">
+                    {Object.values(ReferralStatus).map((status) => (
+                      <option key={status} value={status}>
+                        {getStatusMeta(status).label}
+                      </option>
+                    ))}
+                  </select>
+                  <input name="feedback" maxLength={500} placeholder="Terugkoppeling of notitie" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                  <input name="handlerName" maxLength={100} placeholder="Naam behandelaar" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+                  <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
+                    Opslaan
+                  </button>
+                </form>
               </div>
             ))}
             {referrals.length === 0 ? <p className="text-sm text-slate-500">Er zijn nog geen zichtbare verwijzingen gevonden.</p> : null}
@@ -238,7 +237,6 @@ export default async function DashboardPage({
           ? {
               OR: [
                 { caseId: { contains: query } },
-                { patientInitials: { contains: query } },
                 { createdBy: { name: { contains: query } } },
                 { assignedTo: { name: { contains: query } } },
               ],
@@ -246,11 +244,15 @@ export default async function DashboardPage({
           : {}),
         ...(filter === "open" ? { status: { in: openStatuses } } : filter === "completed" ? { status: ReferralStatus.COMPLETED } : {}),
       },
-      include: {
-        createdBy: true,
-        assignedTo: true,
-        themes: true,
-        updates: true,
+      select: {
+        id: true,
+        caseId: true,
+        status: true,
+        updatedAt: true,
+        createdBy: { select: { name: true } },
+        assignedTo: { select: { name: true } },
+        themes: { select: { theme: true } },
+        _count: { select: { updates: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -294,7 +296,7 @@ export default async function DashboardPage({
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Pilotoverzicht</p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Alle verwijzingen en terugkoppelingen</h2>
-              <p className="mt-2 text-sm text-slate-500">Read-only overzicht voor meekijken, evalueren en exporteren.</p>
+              <p className="mt-2 text-sm text-slate-500">Geanonimiseerd read-only overzicht voor evaluatie van de pilot.</p>
             </div>
             <form className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
               <div className="flex flex-wrap gap-2">
@@ -312,45 +314,13 @@ export default async function DashboardPage({
             </form>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Data-export</p>
-            <h3 className="mt-2 text-xl font-semibold text-slate-900">Download pilotdata</h3>
-            <p className="mt-2 text-sm text-slate-600">Gebruik CSV voor analyse en PDF voor delen of bespreken.</p>
-            <form method="get" className="mt-4 space-y-4">
-              <div className="grid gap-3 md:grid-cols-2 xl:max-w-2xl">
-                <label className="space-y-2 text-sm text-slate-700">
-                  <span>Van datum</span>
-                  <input name="from" type="date" defaultValue={from} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
-                </label>
-                <label className="space-y-2 text-sm text-slate-700">
-                  <span>Tot datum</span>
-                  <input name="to" type="date" defaultValue={to} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-sky-400" />
-                </label>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button formAction="/api/admin/export/referrals?format=csv" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
-                  Verwijzingen CSV
-                </button>
-                <button formAction="/api/admin/export/referrals?format=pdf" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
-                  Verwijzingen PDF
-                </button>
-                <button formAction="/api/admin/export/referral-updates?format=csv" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700">
-                  Terugkoppelingen CSV
-                </button>
-                <button formAction="/api/admin/export/referral-updates?format=pdf" className="rounded-full bg-sky-100 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-200">
-                  Terugkoppelingen PDF
-                </button>
-              </div>
-            </form>
-          </div>
-
           <div className="mt-6 overflow-hidden rounded-3xl border border-slate-100">
             <div className="grid grid-cols-1 divide-y divide-slate-100">
               {referrals.map((referral) => (
-                <Link key={referral.id} href={`/verwijzingen/${referral.id}`} className="grid gap-3 bg-white px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[1fr_0.95fr_0.95fr_1fr_0.7fr] md:items-center">
+                <div key={referral.id} className="grid gap-3 bg-white px-5 py-4 md:grid-cols-[1fr_0.95fr_0.95fr_1fr_0.7fr] md:items-center">
                   <div>
                     <p className="font-semibold text-slate-900">{referral.caseId}</p>
-                    <p className="text-sm text-slate-500">{referral.patientInitials} ({referral.patientBirthYear})</p>
+                    <p className="text-sm text-slate-500">Geanonimiseerde casus</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-700">{referral.createdBy.name}</p>
@@ -362,13 +332,13 @@ export default async function DashboardPage({
                   </div>
                   <div>
                     <p className="text-sm text-slate-600">{referral.themes.map((item) => getThemeLabel(item.theme)).join(", ")}</p>
-                    <p className="text-sm text-slate-500">{referral.updates.length} terugkoppelingen</p>
+                    <p className="text-sm text-slate-500">{referral._count.updates} terugkoppelingen</p>
                   </div>
                   <div className="space-y-2 md:justify-self-end">
                     <p className="text-sm text-slate-500">{formatDateTime(referral.updatedAt)}</p>
                     <StatusBadge status={referral.status} />
                   </div>
-                </Link>
+                </div>
               ))}
               {referrals.length === 0 ? <p className="px-5 py-10 text-sm text-slate-500">Nog geen verwijzingen gevonden voor deze filter.</p> : null}
             </div>

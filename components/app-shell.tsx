@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, MapPinned, Settings, Shield } from "lucide-react";
+import { BarChart3, BookOpenCheck, CalendarCheck, ClipboardList, FileQuestion, FileSpreadsheet, LayoutDashboard, ListChecks, MapPinned, Settings, Shield } from "lucide-react";
 import { Role } from "@prisma/client";
 import { NotificationBell } from "@/components/notification-bell";
 import { LogoutButton } from "@/components/logout-button";
@@ -17,9 +17,25 @@ const navByRole: Record<Role, Array<{ href: string; label: string; icon: typeof 
     { href: "/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
   ],
   ADMIN: [
-    { href: "/dashboard", label: "Overzicht", icon: Shield },
+    { href: "/monitoring", label: "Projectmonitoring", icon: BarChart3 },
+    { href: "/monitoring/weken", label: "Weekregistratie", icon: CalendarCheck },
+    { href: "/monitoring/registraties", label: "Registraties", icon: ListChecks },
+    { href: "/monitoring/vragenlijsten", label: "Vragenlijsten", icon: FileQuestion },
+    { href: "/monitoring/projectlog", label: "Projectlog", icon: BookOpenCheck },
+    { href: "/monitoring/rapportages", label: "Rapportages", icon: FileSpreadsheet },
+    { href: "/dashboard", label: "Systeemoverzicht", icon: Shield },
+    { href: "/admin/projectinstellingen", label: "Projectinstellingen", icon: Settings },
     { href: "/admin/gebruikers", label: "Gebruikers", icon: Settings },
     { href: "/admin/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
+  ],
+  DATA_MANAGER: [
+    { href: "/monitoring", label: "Dashboard", icon: BarChart3 },
+    { href: "/monitoring/weken", label: "Weekregistratie", icon: CalendarCheck },
+    { href: "/monitoring/registraties", label: "Registraties", icon: ListChecks },
+    { href: "/monitoring/registraties/nieuw", label: "Nieuwe registratie", icon: ClipboardList },
+    { href: "/monitoring/vragenlijsten", label: "Vragenlijsten", icon: FileQuestion },
+    { href: "/monitoring/projectlog", label: "Projectlog", icon: BookOpenCheck },
+    { href: "/monitoring/rapportages", label: "Rapportages", icon: FileSpreadsheet },
   ],
   PILOT: [
     { href: "/dashboard", label: "Pilotoverzicht", icon: Shield },

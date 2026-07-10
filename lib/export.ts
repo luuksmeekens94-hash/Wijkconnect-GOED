@@ -57,7 +57,8 @@ function normalizeCsvValue(value: CsvValue) {
     return "";
   }
 
-  return String(value);
+  const normalized = String(value);
+  return /^[=+\-@]/.test(normalized.trimStart()) ? `'${normalized}` : normalized;
 }
 
 function escapeCsvValue(value: CsvValue) {

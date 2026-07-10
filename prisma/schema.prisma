@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -13,7 +12,173 @@ enum Role {
   VERWIJZER
   SOCIAAL
   ADMIN
+  DATA_MANAGER
   PILOT
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringProgram {
+  MOVEMENT
+  SOCIAL
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringCaseStatus {
+  OPEN
+  CLOSED
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringReferralSource {
+  ASSISTANT
+  GP
+  PHYSIOTHERAPIST
+  SOCIAL_PROFESSIONAL
+  SELF
+  OTHER
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringReferralBasis {
+  PHONE_TRIAGE
+  CONSULT
+  FORMAL_REFERRAL
+  MORNING_CLINIC
+  NO_INDICATION
+  OTHER
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringAppointmentStatus {
+  SCHEDULED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringOutcome {
+  ONE_OFF_PHYSIO
+  REGULAR_PHYSIO
+  RETURN_TO_GP
+  SPECIALIST_CARE
+  REFERRED_TO_SOCIAL
+  ADVICE_ONLY
+  SOCIAL_SUPPORT
+  SUPPORT_STARTED
+  OTHER_SUPPORT
+  SELF_MANAGEMENT
+  NO_MATCH
+  UNREACHABLE
+  DECLINED
+  NO_FOLLOW_UP
+  UNKNOWN
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringHelpRequestClarity {
+  CLEAR
+  PARTIAL
+  UNCLEAR
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringFeedbackChannel {
+  ZORGDOMEIN
+  PATIENT_RECORD
+  SECURE_EMAIL
+  PHONE
+  OTHER
+
+  @@schema("wijkconnect")
+}
+
+enum MonitoringSocialReason {
+  FINANCIAL
+  PSYCHOSOCIAL_STRESS
+  POVERTY
+  LONELINESS
+  LIFESTYLE
+  SELF_MANAGEMENT
+  HOUSING
+  WORK_INCOME
+  FAMILY
+  OTHER
+
+  @@schema("wijkconnect")
+}
+
+enum WeeklyReviewStatus {
+  OPEN
+  READY
+  CLOSED
+
+  @@schema("wijkconnect")
+}
+
+enum SurveyAudience {
+  MOVEMENT_PATIENT
+  SOCIAL_PATIENT
+  GP
+  ASSISTANT
+  SOCIAL_PROFESSIONAL
+
+  @@schema("wijkconnect")
+}
+
+enum SurveyQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  SCALE
+  FREE_TEXT
+
+  @@schema("wijkconnect")
+}
+
+enum SurveyInvitationStatus {
+  DRAFT
+  READY
+  SENT
+  OPENED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+
+  @@schema("wijkconnect")
+}
+
+enum KpiUnit {
+  COUNT
+  PERCENTAGE
+  DAYS
+
+  @@schema("wijkconnect")
+}
+
+enum KpiComparator {
+  AT_LEAST
+  AT_MOST
+
+  @@schema("wijkconnect")
+}
+
+enum ProjectActivityType {
+  MDO
+  TRAINING
+  EVALUATION
+  IMPLEMENTATION
+  BOTTLENECK
+  FINANCING
+  SCALE_UP
+  OTHER
 
   @@schema("wijkconnect")
 }
@@ -77,19 +242,26 @@ enum ResourceSource {
 }
 
 model User {
-  id                String           @id @default(cuid())
-  email             String           @unique
-  passwordHash      String
-  name              String
-  organization      String
-  role              Role
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  createdReferrals  Referral[]       @relation("CreatedReferrals")
-  assignedReferrals Referral[]       @relation("AssignedReferrals")
-  referralUpdates   ReferralUpdate[]
-  notifications     Notification[]
-  auditLogs         AuditLog[]
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  passwordHash           String
+  name                   String
+  organization           String
+  role                   Role
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  createdReferrals       Referral[]              @relation("CreatedReferrals")
+  assignedReferrals      Referral[]              @relation("AssignedReferrals")
+  referralUpdates        ReferralUpdate[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  monitoringCases        MonitoringCase[]        @relation("MonitoringCaseCreatedBy")
+  monitoringAppointments MonitoringAppointment[] @relation("MonitoringAppointmentCreatedBy")
+  weeklyReviews          WeeklyReview[]          @relation("WeeklyReviewReviewedBy")
+  surveyInvitations      SurveyInvitation[]      @relation("SurveyInvitationCreatedBy")
+  projectActivities      ProjectActivity[]       @relation("ProjectActivityCreatedBy")
+
   @@schema("wijkconnect")
 }
 
@@ -112,6 +284,7 @@ model Referral {
   themes           ReferralTheme[]
   updates          ReferralUpdate[]
   notifications    Notification[]
+  monitoringCase   MonitoringCase?
 
   @@index([createdById, status])
   @@index([assignedToId, status])
@@ -137,31 +310,32 @@ model ReferralUpdate {
   note           String?
   handlerName    String?
   createdAt      DateTime        @default(now())
-  referral       Referral         @relation(fields: [referralId], references: [id], onDelete: Cascade)
-  updatedBy      User             @relation(fields: [updatedById], references: [id])
+  referral       Referral        @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  updatedBy      User            @relation(fields: [updatedById], references: [id])
+
   @@schema("wijkconnect")
 }
 
 model SocialResource {
-  id            String          @id @default(cuid())
-  name          String
-  description   String
-  category      String
-  organization  String
-  contactEmail  String?
-  contactPhone  String?
-  address       String?
-  stadsdeel     String?
-  wijk          String?
-  targetGroup   String?
-  costs         String?
-  referralNeeded Boolean        @default(false)
-  type          ResourceType
-  source        ResourceSource
-  url           String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  themes        ResourceTheme[]
+  id             String          @id @default(cuid())
+  name           String
+  description    String
+  category       String
+  organization   String
+  contactEmail   String?
+  contactPhone   String?
+  address        String?
+  stadsdeel      String?
+  wijk           String?
+  targetGroup    String?
+  costs          String?
+  referralNeeded Boolean         @default(false)
+  type           ResourceType
+  source         ResourceSource
+  url            String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  themes         ResourceTheme[]
 
   @@index([type, organization])
   @@schema("wijkconnect")
@@ -178,15 +352,15 @@ model ResourceTheme {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
+  id         String    @id @default(cuid())
+  userId     String
   referralId String?
-  title     String
-  message   String
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  referral  Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  title      String
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referral   Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
 
   @@index([userId, readAt])
   @@schema("wijkconnect")
@@ -209,5 +383,228 @@ model AuditLog {
 model CaseCounter {
   year  Int @id
   value Int @default(0)
+
+  @@schema("wijkconnect")
+}
+
+model MonitoringParticipant {
+  id            String           @id @default(cuid())
+  pseudonymCode String           @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  cases         MonitoringCase[]
+
+  @@schema("wijkconnect")
+}
+
+model MonitoringCase {
+  id                   String                        @id @default(cuid())
+  participantId        String
+  sourceReferralId     String?                       @unique
+  program              MonitoringProgram
+  referralDate         DateTime                      @db.Date
+  referralSource       MonitoringReferralSource
+  referralBasis        MonitoringReferralBasis?
+  complaintCategory    String?
+  helpRequest          String?
+  helpRequestClarity   MonitoringHelpRequestClarity?
+  assignedOrganization String?
+  assignedProfessional String?
+  status               MonitoringCaseStatus          @default(OPEN)
+  closedAt             DateTime?
+  createdById          String
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  participant          MonitoringParticipant         @relation(fields: [participantId], references: [id])
+  sourceReferral       Referral?                     @relation(fields: [sourceReferralId], references: [id], onDelete: SetNull)
+  createdBy            User                          @relation("MonitoringCaseCreatedBy", fields: [createdById], references: [id])
+  socialReasons        MonitoringCaseSocialReason[]
+  appointments         MonitoringAppointment[]
+  surveyInvitations    SurveyInvitation[]
+
+  @@index([program, referralDate])
+  @@index([status, program])
+  @@index([participantId, referralDate])
+  @@schema("wijkconnect")
+}
+
+model MonitoringCaseSocialReason {
+  id     Int                    @id @default(autoincrement())
+  caseId String
+  reason MonitoringSocialReason
+  case   MonitoringCase         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, reason])
+  @@schema("wijkconnect")
+}
+
+model MonitoringAppointment {
+  id                   String                      @id @default(cuid())
+  caseId               String
+  scheduledAt          DateTime
+  status               MonitoringAppointmentStatus @default(SCHEDULED)
+  outcome              MonitoringOutcome?
+  outcomeNote          String?
+  followUpOrganization String?
+  evaluationEligible   Boolean?
+  reminderSentAt       DateTime?
+  feedbackSentAt       DateTime?
+  feedbackRecipient    String?
+  feedbackChannel      MonitoringFeedbackChannel?
+  closedAt             DateTime?
+  createdById          String
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  case                 MonitoringCase              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdBy            User                        @relation("MonitoringAppointmentCreatedBy", fields: [createdById], references: [id])
+  surveyInvitations    SurveyInvitation[]
+
+  @@index([scheduledAt, status])
+  @@index([caseId, scheduledAt])
+  @@schema("wijkconnect")
+}
+
+model WeeklyReview {
+  id             String             @id @default(cuid())
+  program        MonitoringProgram
+  weekStart      DateTime           @db.Date
+  availableSlots Int                @default(0)
+  clinicPlanned  Boolean            @default(true)
+  status         WeeklyReviewStatus @default(OPEN)
+  notes          String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  reviewedBy     User?              @relation("WeeklyReviewReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([program, weekStart])
+  @@index([weekStart, status])
+  @@schema("wijkconnect")
+}
+
+model KpiTarget {
+  id          String             @id @default(cuid())
+  code        String
+  label       String
+  program     MonitoringProgram?
+  unit        KpiUnit
+  comparator  KpiComparator
+  targetValue Float
+  periodStart DateTime           @db.Date
+  periodEnd   DateTime           @db.Date
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([code, periodStart])
+  @@index([active, periodStart, periodEnd])
+  @@schema("wijkconnect")
+}
+
+model SurveyTemplate {
+  id          String             @id @default(cuid())
+  code        String
+  name        String
+  audience    SurveyAudience
+  version     Int                @default(1)
+  description String?
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  questions   SurveyQuestion[]
+  invitations SurveyInvitation[]
+
+  @@unique([code, version])
+  @@index([audience, active])
+  @@schema("wijkconnect")
+}
+
+model SurveyQuestion {
+  id         String             @id @default(cuid())
+  templateId String
+  position   Int
+  code       String
+  prompt     String
+  type       SurveyQuestionType
+  required   Boolean            @default(true)
+  options    Json?
+  minValue   Int?
+  maxValue   Int?
+  createdAt  DateTime           @default(now())
+  template   SurveyTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers    SurveyAnswer[]
+
+  @@unique([templateId, code])
+  @@unique([templateId, position])
+  @@schema("wijkconnect")
+}
+
+model SurveyInvitation {
+  id            String                 @id @default(cuid())
+  templateId    String
+  caseId        String?
+  appointmentId String?
+  tokenHash     String                 @unique
+  status        SurveyInvitationStatus @default(DRAFT)
+  createdById   String
+  invitedAt     DateTime?
+  sentAt        DateTime?
+  expiresAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  template      SurveyTemplate         @relation(fields: [templateId], references: [id])
+  case          MonitoringCase?        @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  appointment   MonitoringAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  createdBy     User                   @relation("SurveyInvitationCreatedBy", fields: [createdById], references: [id])
+  response      SurveyResponse?
+
+  @@index([status, createdAt])
+  @@index([templateId, status])
+  @@schema("wijkconnect")
+}
+
+model SurveyResponse {
+  id           String           @id @default(cuid())
+  invitationId String           @unique
+  submittedAt  DateTime         @default(now())
+  invitation   SurveyInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  answers      SurveyAnswer[]
+
+  @@schema("wijkconnect")
+}
+
+model SurveyAnswer {
+  id             String         @id @default(cuid())
+  responseId     String
+  questionId     String
+  choiceValue    String?
+  selectedValues Json?
+  numericValue   Float?
+  textValue      String?
+  response       SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question       SurveyQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([responseId, questionId])
+  @@schema("wijkconnect")
+}
+
+model ProjectActivity {
+  id           String              @id @default(cuid())
+  type         ProjectActivityType
+  activityDate DateTime            @db.Date
+  title        String
+  description  String?
+  ownerName    String?
+  followUpDate DateTime?           @db.Date
+  completed    Boolean             @default(false)
+  createdById  String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  createdBy    User                @relation("ProjectActivityCreatedBy", fields: [createdById], references: [id])
+
+  @@index([activityDate, type])
+  @@index([completed, followUpDate])
   @@schema("wijkconnect")
 }

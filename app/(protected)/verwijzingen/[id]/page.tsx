@@ -8,10 +8,11 @@ import { getStatusMeta, getThemeLabel, urgencyLabels } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function ReferralDetailPage({ params }: { params: { id: string } }) {
+export default async function ReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireUser();
   const referral = await prisma.referral.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       createdBy: true,
       assignedTo: true,
@@ -27,10 +28,8 @@ export default async function ReferralDetailPage({ params }: { params: { id: str
 
   const allowed =
     user.role === "ADMIN" ||
-    user.role === "PILOT" ||
-    user.role === "SOCIAAL" ||
-    referral.createdById === user.id ||
-    referral.assignedToId === user.id;
+    (user.role === "VERWIJZER" && referral.createdById === user.id) ||
+    (user.role === "SOCIAAL" && referral.assignedToId === user.id);
   const canEditReferral = user.role === "ADMIN" || referral.assignedToId === user.id;
 
   if (!allowed) notFound();

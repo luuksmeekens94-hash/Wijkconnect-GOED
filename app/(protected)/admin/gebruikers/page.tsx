@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
 import { roleLabels } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { saveUser } from "@/lib/actions";
+import { saveUser, toggleUserActive } from "@/lib/actions";
 
 export default async function AdminUsersPage() {
   await requireRole(["ADMIN"]);
@@ -24,7 +24,7 @@ export default async function AdminUsersPage() {
               </option>
             ))}
           </select>
-          <input name="password" type="password" placeholder="Wachtwoord (optioneel)" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
+          <input name="password" type="password" required minLength={10} autoComplete="new-password" placeholder="Wachtwoord (minimaal 10 tekens)" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
           <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
             Gebruiker opslaan
           </button>
@@ -42,8 +42,27 @@ export default async function AdminUsersPage() {
                     {user.email} • {user.organization}
                   </p>
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">{roleLabels[user.role]}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${user.isActive ? "bg-white text-slate-600" : "bg-rose-100 text-rose-700"}`}>{user.isActive ? roleLabels[user.role] : "Inactief"}</span>
+                  <form action={toggleUserActive}>
+                    <input type="hidden" name="userId" value={user.id} />
+                    <input type="hidden" name="active" value={user.isActive ? "false" : "true"} />
+                    <button className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">{user.isActive ? "Deactiveren" : "Activeren"}</button>
+                  </form>
+                </div>
               </div>
+              <details className="mt-3 border-t border-slate-200 pt-3">
+                <summary className="cursor-pointer text-xs font-medium text-slate-500">Accountgegevens of wachtwoord bijwerken</summary>
+                <form action={saveUser} className="mt-3 grid gap-2 md:grid-cols-2">
+                  <input type="hidden" name="id" value={user.id} />
+                  <input name="name" defaultValue={user.name} required className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                  <input name="email" type="email" defaultValue={user.email} required className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                  <input name="organization" defaultValue={user.organization} required className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                  <select name="role" defaultValue={user.role} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{Object.values(Role).map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select>
+                  <input name="password" type="password" minLength={10} autoComplete="new-password" placeholder="Nieuw wachtwoord, optioneel" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2" />
+                  <button className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white md:col-span-2">Wijzigingen opslaan</button>
+                </form>
+              </details>
             </div>
           ))}
         </div>

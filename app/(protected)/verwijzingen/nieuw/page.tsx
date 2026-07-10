@@ -7,8 +7,9 @@ import { prisma } from "@/lib/prisma";
 export default async function NewReferralPage({
   searchParams,
 }: {
-  searchParams: { recipient?: string };
+  searchParams: Promise<{ recipient?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   await requireRole(["VERWIJZER"]);
 
   const [recipients, favorites, resources] = await Promise.all([
@@ -35,7 +36,7 @@ export default async function NewReferralPage({
         themes: item.themes.map((theme) => theme.theme as Theme),
       }))}
       action={createReferral}
-      preselectedRecipientId={searchParams.recipient}
+      preselectedRecipientId={resolvedSearchParams.recipient}
     />
   );
 }

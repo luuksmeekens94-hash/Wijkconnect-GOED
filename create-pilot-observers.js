@@ -22,7 +22,11 @@ const observers = [
 ];
 
 async function main() {
-  const passwordHash = await bcrypt.hash("WijkConnect2026!", 10);
+  const seedPassword = process.env.SEED_PASSWORD;
+  if (!seedPassword || seedPassword.length < 12) {
+    throw new Error("Stel SEED_PASSWORD in op een uniek wachtwoord van minimaal 12 tekens voordat je accounts aanmaakt");
+  }
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
   let updated = 0;
 
   for (const observer of observers) {

@@ -36,7 +36,7 @@ export const authOptions: NextAuthOptions = {
           where: { email: parsed.data.email.toLowerCase() },
         });
 
-        if (!user) {
+        if (!user || !user.isActive) {
           return null;
         }
 
@@ -97,7 +97,7 @@ export async function requireUser() {
   return session.user;
 }
 
-export async function requireRole(roles: Array<"VERWIJZER" | "SOCIAAL" | "ADMIN" | "PILOT">) {
+export async function requireRole(roles: Array<"VERWIJZER" | "SOCIAAL" | "ADMIN" | "DATA_MANAGER" | "PILOT">) {
   const user = await requireUser();
   if (!roles.includes(user.role)) {
     redirect("/dashboard");

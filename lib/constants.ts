@@ -35,6 +35,7 @@ export const roleLabels: Record<Role, string> = {
   VERWIJZER: "Verwijzer",
   SOCIAAL: "Sociaal professional",
   ADMIN: "Beheerder",
+  DATA_MANAGER: "Projectbeheerder",
   PILOT: "Pilot / meekijken",
 };
 
