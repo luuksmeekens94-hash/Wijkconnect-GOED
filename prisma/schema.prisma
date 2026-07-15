@@ -155,6 +155,25 @@ enum SurveyInvitationStatus {
   @@schema("wijkconnect")
 }
 
+enum SurveyRecipientType {
+  PATIENT
+  PROFESSIONAL
+
+  @@schema("wijkconnect")
+}
+
+enum SurveyDeliveryStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+  SUPPRESSED
+
+  @@schema("wijkconnect")
+}
+
 enum KpiUnit {
   COUNT
   PERCENTAGE
@@ -520,6 +539,26 @@ model SurveyTemplate {
   @@schema("wijkconnect")
 }
 
+model SurveyRecipient {
+  id                           String              @id @default(cuid())
+  type                         SurveyRecipientType
+  emailEncrypted               String?             @db.Text
+  emailFingerprint             String
+  contactPermissionConfirmedAt DateTime?
+  contactPermissionSource      String?
+  contactRetentionUntil        DateTime?
+  contactPurgedAt              DateTime?
+  suppressedAt                 DateTime?
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+  invitations                  SurveyInvitation[]
+
+  @@index([emailFingerprint, type])
+  @@index([suppressedAt])
+  @@index([contactRetentionUntil])
+  @@schema("wijkconnect")
+}
+
 model SurveyQuestion {
   id         String             @id @default(cuid())
   templateId String
@@ -541,26 +580,45 @@ model SurveyQuestion {
 }
 
 model SurveyInvitation {
-  id            String                 @id @default(cuid())
-  templateId    String
-  caseId        String?
-  appointmentId String?
-  tokenHash     String                 @unique
-  status        SurveyInvitationStatus @default(DRAFT)
-  createdById   String
-  invitedAt     DateTime?
-  sentAt        DateTime?
-  expiresAt     DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  template      SurveyTemplate         @relation(fields: [templateId], references: [id])
-  case          MonitoringCase?        @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  appointment   MonitoringAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  createdBy     User                   @relation("SurveyInvitationCreatedBy", fields: [createdById], references: [id])
-  response      SurveyResponse?
+  id                        String                 @id @default(cuid())
+  templateId                String
+  caseId                    String?
+  appointmentId             String?
+  recipientId               String?
+  campaignPeriod            String?
+  dedupeKey                 String?                @unique
+  tokenHash                 String                 @unique
+  status                    SurveyInvitationStatus @default(DRAFT)
+  deliveryStatus            SurveyDeliveryStatus   @default(PENDING)
+  deliveryProvider          String?
+  initialProviderMessageId  String?
+  reminderProviderMessageId String?
+  providerMessageId         String?
+  sendAttempts              Int                    @default(0)
+  createdById               String
+  invitedAt                 DateTime?
+  sentAt                    DateTime?
+  openedAt                  DateTime?
+  deliveredAt               DateTime?
+  bouncedAt                 DateTime?
+  failedAt                  DateTime?
+  reminderSentAt            DateTime?
+  lastDeliveryErrorCode     String?
+  expiresAt                 DateTime?
+  completedAt               DateTime?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  template                  SurveyTemplate         @relation(fields: [templateId], references: [id])
+  case                      MonitoringCase?        @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  appointment               MonitoringAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  recipient                 SurveyRecipient?       @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+  createdBy                 User                   @relation("SurveyInvitationCreatedBy", fields: [createdById], references: [id])
+  response                  SurveyResponse?
 
   @@index([status, createdAt])
+  @@index([deliveryStatus, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([templateId, campaignPeriod])
   @@index([templateId, status])
   @@schema("wijkconnect")
 }

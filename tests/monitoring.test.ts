@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MonitoringAppointmentStatus, MonitoringOutcome, MonitoringProgram } from "@prisma/client";
-import { calculateMonitoringMetrics, percentage } from "../lib/monitoring.ts";
+import { calculateMonitoringMetrics, getMonitoringWeeklyCapacity, percentage } from "../lib/monitoring.ts";
 
 test("percentage rondt normaal af op één decimaal", () => {
   assert.equal(percentage(236, 249), 94.8);
   assert.equal(percentage(0, 0), 0);
+});
+
+test("weekcapaciteit gebruikt vaste defaults zolang geen weekcontrole bestaat", () => {
+  assert.equal(getMonitoringWeeklyCapacity(MonitoringProgram.MOVEMENT), 6);
+  assert.equal(getMonitoringWeeklyCapacity(MonitoringProgram.SOCIAL), 4);
+  assert.equal(getMonitoringWeeklyCapacity(MonitoringProgram.MOVEMENT, 8), 8);
+  assert.equal(getMonitoringWeeklyCapacity(MonitoringProgram.SOCIAL, 0), 0);
 });
 
 test("monitoringmetrics leiden KPI's af uit bronregistraties", () => {
@@ -50,6 +57,7 @@ test("monitoringmetrics leiden KPI's af uit bronregistraties", () => {
 
   const metrics = calculateMonitoringMetrics(records, 6);
   assert.equal(metrics.uniquePatients, 1);
+  assert.equal(metrics.scheduled, 3);
   assert.equal(metrics.attended, 2);
   assert.equal(metrics.noShows, 1);
   assert.equal(metrics.cancelled, 1);
@@ -59,4 +67,28 @@ test("monitoringmetrics leiden KPI's af uit bronregistraties", () => {
   assert.equal(metrics.feedbackPercentage, 50);
   assert.equal(metrics.oneOffMovementPercentage, 50);
   assert.equal(metrics.openSlots, 3);
+  assert.equal(metrics.overbookedBy, 0);
+});
+
+test("monitoringmetrics signaleren overboeking op basis van niet-geannuleerde afspraken", () => {
+  const records = [
+    MonitoringAppointmentStatus.SCHEDULED,
+    MonitoringAppointmentStatus.ATTENDED,
+    MonitoringAppointmentStatus.NO_SHOW,
+    MonitoringAppointmentStatus.CANCELLED,
+  ].map((status, index) => ({
+    participantId: `patient-${index}`,
+    referralDate: new Date("2026-07-01T12:00:00Z"),
+    scheduledAt: new Date("2026-07-08T12:00:00Z"),
+    status,
+    outcome: null,
+    feedbackSentAt: null,
+    program: MonitoringProgram.SOCIAL,
+  }));
+
+  const metrics = calculateMonitoringMetrics(records, 2);
+  assert.equal(metrics.scheduled, 3);
+  assert.equal(metrics.cancelled, 1);
+  assert.equal(metrics.openSlots, 0);
+  assert.equal(metrics.overbookedBy, 1);
 });

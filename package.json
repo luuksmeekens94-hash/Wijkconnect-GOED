@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "admin:reset": "tsx scripts/reset-admin-password.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
