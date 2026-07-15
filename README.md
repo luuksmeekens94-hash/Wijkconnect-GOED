@@ -34,13 +34,13 @@ npm run build
 
 ## Productie op Vercel
 
-Koppel Vercel aan `luuksmeekens94-hash/Wijkconnect-GOED`, branch `main`. Gebruik als Production Build Command:
+Koppel Vercel aan `luuksmeekens94-hash/Wijkconnect-GOED`, branch `main`. De repository stelt via `vercel.json` deze Build Command in:
 
 ```text
-npm run db:migrate && npm run build
+npm run vercel:build
 ```
 
-Hierdoor worden alleen gecommitte Prisma-migraties toegepast voordat Next.js wordt gebouwd. Maak vooraf een databaseback-up en controleer dat previews niet naar de productiedatabase wijzen.
+Deze opdracht voert alleen bij `VERCEL_ENV=production` eerst `npm run db:migrate` uit. Preview- en lokale builds wijzigen geen database en voeren alleen de applicatiebuild uit. Maak vóór een productie-merge een databaseback-up en geef previews nooit de productie-`DATABASE_URL`.
 
 ## Vragenlijsten verzenden via Brevo
 
@@ -97,6 +97,6 @@ Wanneer dit via één Vercel-redeployment moet gebeuren:
 
 3. controleer dat de deployment geslaagd is;
 4. verwijder direct beide resetvariabelen;
-5. herstel de Build Command naar `npm run db:migrate && npm run build`.
+5. herstel de Build Command naar `npm run vercel:build`.
 
 Het script toont of logt nooit het wachtwoord of de hash.

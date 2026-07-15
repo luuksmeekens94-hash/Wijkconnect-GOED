@@ -209,7 +209,7 @@ Alle eerder gebruikte gedeelde wachtwoorden moeten vóór livegang buiten de cod
 10. Roteer alle eerder gedeelde pilotwachtwoorden.
 11. Voer een functionele acceptatietest uit met fictieve patiëntcodes en testadressen voordat echte registraties worden toegevoegd.
 
-De productiedeployment gebruikt `npm run db:migrate && npm run build`. Koppel daarom alleen de Production-omgeving aan de productiedatabase; previewdeployments moeten een aparte database of geen `DATABASE_URL` krijgen.
+Vercel gebruikt `npm run vercel:build`. Alleen wanneer Vercel de omgeving als `production` markeert, worden eerst de goedgekeurde migraties uitgevoerd. Previewdeployments wijzigen geen database en moeten een aparte database of geen `DATABASE_URL` krijgen.
 
 ## Beslispunten voor het overleg met De Schakel
 
