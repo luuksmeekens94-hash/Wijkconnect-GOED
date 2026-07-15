@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "vercel:build": "node scripts/vercel-build.mjs",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint app components lib types tests --max-warnings=0",
@@ -12,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "admin:reset": "tsx scripts/reset-admin-password.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

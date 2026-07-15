@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardPlus, Clock3, FileQuestion, Gauge, UsersRound } from "lucide-react";
 import { MonitoringProgram, SurveyInvitationStatus } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
-import { formatDateInput, getIsoWeekRange, getOptionLabel, monitoringProgramOptions, percentage, weeklyReviewStatusLabels } from "@/lib/monitoring";
+import { formatDateInput, getIsoWeekRange, getMonitoringWeeklyCapacity, getOptionLabel, monitoringProgramOptions, percentage, weeklyReviewStatusLabels } from "@/lib/monitoring";
 import { getMonitoringDashboardData, getMonitoringPeriod } from "@/lib/monitoring-queries";
 
 function StatCard({ label, value, detail, tone = "sky" }: { label: string; value: string | number; detail: string; tone?: "sky" | "emerald" | "amber" | "violet" }) {
@@ -129,13 +129,14 @@ export default async function MonitoringDashboardPage({
             <div className="mt-5 space-y-3">
               {monitoringProgramOptions.map((option) => {
                 const review = currentReviews.find((item) => item.program === option.value);
+                const availableSlots = getMonitoringWeeklyCapacity(option.value, review?.availableSlots);
                 return (
                   <div key={option.value} className="rounded-2xl bg-slate-50 px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium text-slate-800">{option.label}</p>
                       <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">{review ? weeklyReviewStatusLabels[review.status] : "Nog niet geopend"}</span>
                     </div>
-                    <p className="mt-2 text-sm text-slate-500">{review?.clinicPlanned === false ? "Geen spreekuur gepland" : `${review?.availableSlots ?? 0} plekken geregistreerd`}</p>
+                    <p className="mt-2 text-sm text-slate-500">{review?.clinicPlanned === false ? "Geen spreekuur gepland" : `${availableSlots} plekken ${review ? "geregistreerd" : "standaardcapaciteit"}`}</p>
                   </div>
                 );
               })}

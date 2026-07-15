@@ -51,6 +51,7 @@ De bestaande verwijsworkflow blijft behouden. Een sociaal professional ziet alle
 - **Doorlooptijd sociaal spreekuur:** voorlopig de afspraak- of eerste-contactdatum minus de verwijzingsdatum. In het overleg moet worden bevestigd of een mislukte contactpoging meetelt.
 - **No-showpercentage:** no-shows gedeeld door verschenen plus no-show; geannuleerde en toekomstige afspraken tellen niet mee.
 - **Open plekken:** vastgelegde weekcapaciteit minus niet-geannuleerde afspraken.
+- **Weekcapaciteit:** standaard 6 plekken voor het beweegspreekuur en 4 voor het sociaal spreekuur. Een expliciete weekcontrole kan alleen bij een afwijkend rooster een andere capaciteit vastleggen.
 - **Terugkoppelpercentage:** verschenen afspraken waarbij datum, ontvanger en kanaal van terugkoppeling zijn vastgelegd.
 
 Percentages worden normaal afgerond. Afgeleide totalen en percentages worden nooit handmatig opgeslagen.
@@ -133,7 +134,17 @@ De vijf historische VEZN-vragenlijsten zijn als versie 1 opgenomen:
 4. doktersassistenten;
 5. welzijnscoaches en buurtteams.
 
-Templates en vragen worden per versie bevroren. Een inhoudelijke aanpassing maakt later versie 2. Uitnodigingen kunnen in deze bouwversie worden voorbereid en gevolgd. Automatische verzending en de publieke invulpagina worden pas geactiveerd na keuzes over toestemming, e-mail of sms, afzender, reminders en bewaartermijn.
+Templates en vragen worden per versie bevroren. Een inhoudelijke aanpassing maakt later versie 2. De huidige versie ondersteunt:
+
+- een persoonlijke, eenmalig bruikbare vragenlijstlink;
+- patiëntuitnodigingen uitsluitend na een verschenen, evaluatiegeschikte afspraak;
+- professionalcampagnes per kalenderkwartaal;
+- transactionele verzending via Brevo en maximaal één herinnering;
+- bezorgstatus, bounce-, spam- en afmeldsuppressie;
+- antwoorden en geaggregeerde bevindingen in WijkConnect;
+- automatische verwijdering van versleutelde contactgegevens na de bewaartermijn.
+
+De mailtekst bevat geen spreekuur-, patiënt-, hulpvraag- of diagnosegegevens. Open- en kliktracking staan uit. Resultaten worden pas vanaf vijf antwoorden per vraag getoond; individuele open teksten blijven afgeschermd totdat een aparte redactieflow beschikbaar is.
 
 ## Projectlogboek
 
@@ -190,14 +201,15 @@ Alle eerder gebruikte gedeelde wachtwoorden moeten vóór livegang buiten de cod
 2. Voeg `MONITORING_PSEUDONYM_SECRET` toe aan de productieomgeving.
 3. Controleer dat `DATABASE_URL` naar de juiste database en het schema `wijkconnect` wijst.
 4. Voer `npm run db:migrate` eenmalig uit tegen de beoogde database.
-5. Bouw en deploy daarna de applicatie.
-6. Maak voor de praktijkmanager een account met rol `DATA_MANAGER`.
-7. Laad vanuit het vragenlijstcentrum de vijf VEZN-templates.
-8. Leg nieuwe KPI-doelen en verslagperiodes vast onder Projectinstellingen.
-9. Roteer alle eerder gedeelde pilotwachtwoorden.
-10. Voer een functionele acceptatietest uit met fictieve patiëntcodes voordat echte registraties worden toegevoegd.
+5. Voeg de survey- en Brevo-variabelen uit `.env.example` aan Vercel toe en verifieer SPF, DKIM en DMARC voor het verzenddomein.
+6. Bouw en deploy daarna de applicatie.
+7. Maak voor de praktijkmanager een account met rol `DATA_MANAGER`.
+8. Laad vanuit het vragenlijstcentrum de vijf VEZN-templates.
+9. Leg nieuwe KPI-doelen en verslagperiodes vast onder Projectinstellingen.
+10. Roteer alle eerder gedeelde pilotwachtwoorden.
+11. Voer een functionele acceptatietest uit met fictieve patiëntcodes en testadressen voordat echte registraties worden toegevoegd.
 
-De migratie wordt bewust niet automatisch tijdens iedere Vercel-build uitgevoerd. Daardoor kan een previewdeployment niet onverwacht de productiedatabase wijzigen.
+Vercel gebruikt `npm run vercel:build`. Alleen wanneer Vercel de omgeving als `production` markeert, worden eerst de goedgekeurde migraties uitgevoerd. Previewdeployments wijzigen geen database en moeten een aparte database of geen `DATABASE_URL` krijgen.
 
 ## Beslispunten voor het overleg met De Schakel
 

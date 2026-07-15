@@ -17,6 +17,15 @@ export const monitoringProgramOptions = [
   { value: MonitoringProgram.SOCIAL, label: "Sociaal spreekuur" },
 ] as const;
 
+export const monitoringWeeklyCapacityDefaults: Record<MonitoringProgram, number> = {
+  [MonitoringProgram.MOVEMENT]: 6,
+  [MonitoringProgram.SOCIAL]: 4,
+};
+
+export function getMonitoringWeeklyCapacity(program: MonitoringProgram, availableSlots?: number | null) {
+  return availableSlots ?? monitoringWeeklyCapacityDefaults[program];
+}
+
 export const monitoringReferralSourceOptions = [
   { value: MonitoringReferralSource.ASSISTANT, label: "Doktersassistent" },
   { value: MonitoringReferralSource.GP, label: "Huisarts" },
@@ -141,7 +150,7 @@ export function calculateMonitoringMetrics(records: MonitoringMetricInput[], ava
   const attended = records.filter((record) => record.status === MonitoringAppointmentStatus.ATTENDED);
   const noShows = records.filter((record) => record.status === MonitoringAppointmentStatus.NO_SHOW);
   const cancelled = records.filter((record) => record.status === MonitoringAppointmentStatus.CANCELLED);
-  const occupied = records.filter((record) => record.status !== MonitoringAppointmentStatus.CANCELLED);
+  const scheduled = records.filter((record) => record.status !== MonitoringAppointmentStatus.CANCELLED);
   const uniquePatients = new Set(attended.map((record) => record.participantId)).size;
   const validLeadTimes = attended.filter((record) => record.scheduledAt.getTime() >= record.referralDate.getTime());
   const withinSevenDays = validLeadTimes.filter((record) => {
@@ -157,10 +166,12 @@ export function calculateMonitoringMetrics(records: MonitoringMetricInput[], ava
   return {
     registrations: records.length,
     uniquePatients,
+    scheduled: scheduled.length,
     attended: attended.length,
     noShows: noShows.length,
     cancelled: cancelled.length,
-    openSlots: Math.max(availableSlots - occupied.length, 0),
+    openSlots: Math.max(availableSlots - scheduled.length, 0),
+    overbookedBy: Math.max(scheduled.length - availableSlots, 0),
     withinSevenDays,
     withinSevenDaysPercentage: percentage(withinSevenDays, validLeadTimes.length),
     noShowPercentage: percentage(noShows.length, attended.length + noShows.length),
