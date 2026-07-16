@@ -41,6 +41,40 @@ const patientAudiences = new Set<SurveyAudience>([
   SurveyAudience.SOCIAL_PATIENT,
 ]);
 
+const surveyActionMessages = {
+  "professionele-uitnodiging-bestaat-al": {
+    text: "Voor deze professional staat voor deze vragenlijst en campagneperiode al een uitnodiging klaar. Gebruik de bestaande uitnodiging in het overzicht.",
+    className: "border-amber-200 bg-amber-50 text-amber-900",
+  },
+  "patientuitnodiging-bestaat-al": {
+    text: "Voor deze afspraak staat al een vragenlijstuitnodiging klaar. Gebruik de bestaande uitnodiging in het overzicht.",
+    className: "border-amber-200 bg-amber-50 text-amber-900",
+  },
+  "uitnodiging-klaargezet": {
+    text: "De uitnodiging staat klaar. Controleer de regel in het overzicht en kies daarna Nu versturen.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  "uitnodiging-verstuurd": {
+    text: "De uitnodiging is aangeboden aan de e-mailprovider. De actuele bezorgstatus verschijnt in het overzicht.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  "verzending-mislukt": {
+    text: "De e-mail kon niet worden verzonden. De uitnodiging is niet dubbel verstuurd en kan na controle opnieuw worden aangeboden.",
+    className: "border-rose-200 bg-rose-50 text-rose-900",
+  },
+} as const;
+
+type SurveyCenterPageProps = {
+  searchParams: Promise<{ melding?: string | string[] }>;
+};
+
+function surveyActionMessage(value: string | string[] | undefined) {
+  const key = Array.isArray(value) ? value[0] : value;
+  return key && key in surveyActionMessages
+    ? surveyActionMessages[key as keyof typeof surveyActionMessages]
+    : null;
+}
+
 function recipientEmailLabel(recipient: { emailEncrypted: string | null } | null) {
   if (!recipient?.emailEncrypted) return "contactgegevens verwijderd";
   try {
@@ -50,11 +84,12 @@ function recipientEmailLabel(recipient: { emailEncrypted: string | null } | null
   }
 }
 
-export default async function SurveyCenterPage() {
+export default async function SurveyCenterPage({ searchParams }: SurveyCenterPageProps) {
   await requireRole(["ADMIN", "DATA_MANAGER"]);
   const emailDeliveryConfigured = isBrevoConfigured();
   const campaignPeriods = surveyCampaignPeriodOptions();
   const currentCampaignPeriod = surveyCampaignPeriodForDate(new Date());
+  const actionMessage = surveyActionMessage((await searchParams).melding);
   const [templates, invitations, eligibleAppointments] = await Promise.all([
     prisma.surveyTemplate.findMany({ include: { _count: { select: { questions: true, invitations: true } } }, orderBy: [{ audience: "asc" }, { version: "desc" }] }),
     prisma.surveyInvitation.findMany({ include: { template: true, recipient: true, response: true, case: { include: { participant: true } } }, orderBy: { createdAt: "desc" }, take: 100 }),
@@ -88,6 +123,12 @@ export default async function SurveyCenterPage() {
             : "Uitnodigingen kunnen worden voorbereid, maar verzending blijft uitgeschakeld totdat de beveiligde Brevo-variabelen in Vercel zijn ingesteld."}
         </div>
       </section>
+
+      {actionMessage ? (
+        <div role="status" className={`rounded-3xl border px-5 py-4 text-sm leading-6 ${actionMessage.className}`}>
+          {actionMessage.text}
+        </div>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {templates.map((template) => (
