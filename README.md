@@ -86,17 +86,13 @@ ADMIN_RESET_PASSWORD="een-uniek-wachtwoord-van-minimaal-14-tekens" \
 npm run admin:reset
 ```
 
-Wanneer dit via één Vercel-redeployment moet gebeuren:
+Bij een Vercel-reset blijft de Build Command altijd `npm run vercel:build`. De repositoryconfiguratie in `vercel.json` heeft namelijk voorrang op een handmatige Build Command in het Vercel-dashboard.
 
 1. voeg `ADMIN_RESET_EMAIL` en `ADMIN_RESET_PASSWORD` tijdelijk als versleutelde Production-variabelen toe;
-2. gebruik één keer deze Build Command:
+2. start een nieuwe Production-redeployment zonder bestaande buildcache;
+3. de productiebuild voert eerst de migraties en daarna automatisch `npm run admin:reset` uit wanneer beide resetvariabelen aanwezig zijn;
+4. controleer in de buildlog dat `Adminwachtwoord is bijgewerkt` wordt weergegeven;
+5. verwijder direct beide resetvariabelen;
+6. start daarna een schone Production-redeployment, zodat de verwijderde geheimen niet meer in de actuele deploymentomgeving aanwezig zijn.
 
-   ```text
-   npm run db:migrate && npm run admin:reset && npm run build
-   ```
-
-3. controleer dat de deployment geslaagd is;
-4. verwijder direct beide resetvariabelen;
-5. herstel de Build Command naar `npm run vercel:build`.
-
-Het script toont of logt nooit het wachtwoord of de hash.
+Als slechts één resetvariabele aanwezig is, stopt de productiebuild veilig met een fout. Preview- en lokale builds voeren nooit een adminreset uit. Het script toont of logt nooit het wachtwoord of de hash.
