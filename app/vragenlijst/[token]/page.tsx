@@ -4,6 +4,7 @@ import { SurveyQuestionType } from "@prisma/client";
 import { unstable_noStore as noStore } from "next/cache";
 import { submitPublicSurvey } from "@/lib/public-survey-actions";
 import { getPublicSurvey } from "@/lib/public-survey";
+import { getPatientSurveyProgramContext } from "@/lib/survey-program-context";
 
 export const metadata: Metadata = {
   title: "Vragenlijst | WijkConnect",
@@ -53,13 +54,22 @@ export default async function PublicSurveyPage({ params }: { params: Promise<{ t
   if (survey.state !== "available") return <StatusCard state={survey.state} />;
 
   const { template } = survey.invitation;
+  const program = getPatientSurveyProgramContext(template.audience);
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:py-12">
       <div className="mx-auto max-w-2xl">
         <header className="rounded-[2rem] bg-slate-950 p-7 text-white shadow-sm sm:p-10">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">WijkConnect · De Schakel</p>
-          <h1 className="mt-4 text-3xl font-semibold leading-tight">{template.name}</h1>
-          <p className="mt-4 text-sm leading-6 text-slate-300">Met uw antwoorden kunnen we het spreekuur verbeteren. Invullen duurt maar een paar minuten.</p>
+          {program ? <p className="mt-5 inline-flex rounded-full bg-sky-400/15 px-3 py-1.5 text-sm font-semibold text-sky-200 ring-1 ring-inset ring-sky-300/20">{program.displayName}</p> : null}
+          <h1 className={`${program ? "mt-3" : "mt-4"} text-3xl font-semibold leading-tight`}>
+            {program ? `Vragenlijst over ${program.sentenceName}` : template.name}
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-slate-300">
+            {program
+              ? `U ontvangt deze vragenlijst omdat u onlangs ${program.sentenceName} bij De Schakel heeft bezocht. Met uw antwoorden kunnen we dit spreekuur verbeteren.`
+              : "Met uw antwoorden kunnen we het spreekuur verbeteren. Invullen duurt maar een paar minuten."}
+          </p>
+          {program ? <p className="mt-2 text-sm leading-6 text-slate-300">Invullen duurt maar een paar minuten.</p> : null}
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-300">
             <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
             <span>Uw antwoorden worden beveiligd opgeslagen en alleen gebruikt voor evaluatie. Vul in open velden geen naam of andere herkenbare gegevens in.</span>

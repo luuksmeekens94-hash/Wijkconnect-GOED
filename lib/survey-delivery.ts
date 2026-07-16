@@ -6,6 +6,7 @@ import { BrevoApiError, sendBrevoTransactionalEmail } from "@/lib/brevo";
 import { decideBrevoWebhookTransition, normalizeBrevoMessageId, parseBrevoWebhookEvent, webhookEventKind, type BrevoWebhookEvent } from "@/lib/brevo-webhook";
 import { prisma } from "@/lib/prisma";
 import { buildSurveyEmail } from "@/lib/survey-email";
+import { getPatientSurveyProgramContext } from "@/lib/survey-program-context";
 import { decryptSurveyRecipientEmail, getSurveyAccessToken } from "@/lib/survey-security";
 
 const RECOVER_QUEUED_AFTER_MINUTES = 15;
@@ -43,7 +44,10 @@ function safeDeliveryErrorCode(error: unknown) {
 async function loadDeliverableInvitation(invitationId: string) {
   return prisma.surveyInvitation.findUnique({
     where: { id: invitationId },
-    include: { recipient: true },
+    include: {
+      recipient: true,
+      template: { select: { audience: true } },
+    },
   });
 }
 
@@ -136,6 +140,7 @@ async function deliverSurveyEmail(invitationId: string, reminder: boolean, actor
       surveyUrl: publicSurveyUrl(invitation.id),
       reminder,
       expiresAt: invitation.expiresAt,
+      program: getPatientSurveyProgramContext(invitation.template.audience),
     });
     const result = await sendBrevoTransactionalEmail({
       to: { email: decryptSurveyRecipientEmail(encryptedRecipientEmail) },

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { SurveyAudience } from "@prisma/client";
 import { isBrevoConfigured, sendBrevoTransactionalEmail } from "../lib/brevo.ts";
 import {
   brevoCorrelationMatches,
@@ -9,6 +10,7 @@ import {
 } from "../lib/brevo-webhook.ts";
 import { bearerTokenFromRequest, verifyLongSecret, verifySameOrigin } from "../lib/request-security.ts";
 import { buildSurveyEmail } from "../lib/survey-email.ts";
+import { getPatientSurveyProgramContext } from "../lib/survey-program-context.ts";
 
 test("Brevo-client gebruikt uitsluitend serverconfiguratie en de officiële v3-vorm", async () => {
   const previous = {
@@ -86,18 +88,43 @@ test("verzendstatus is pas actief als ook link- en surveysecrets geldig zijn", (
   }
 });
 
-test("vragenlijstmail is herkenbaar, neutraal en bevat geen spreekuurgegevens", () => {
+test("patiëntmail noemt het juiste spreekuur zonder de neutrale onderwerpregel te veranderen", () => {
   const content = buildSurveyEmail({
     surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
     expiresAt: new Date("2026-08-31T12:00:00Z"),
+    program: getPatientSurveyProgramContext(SurveyAudience.MOVEMENT_PATIENT),
   });
   const allContent = `${content.subject}\n${content.textContent}\n${content.htmlContent}`.toLowerCase();
 
   assert.match(content.subject, /ervaring/);
+  assert.doesNotMatch(content.subject, /beweegspreekuur|sociaal spreekuur/);
   assert.match(content.textContent, /wijkconnect/i);
   assert.match(content.textContent, /opaque-token/);
+  assert.match(allContent, /beweegspreekuur/);
+  assert.doesNotMatch(allContent, /sociaal spreekuur/);
+  assert.match(content.textContent, /bij de schakel heeft bezocht/i);
   assert.match(content.textContent, /geen evaluatie-uitnodigingen meer ontvangen/i);
-  assert.doesNotMatch(allContent, /beweegspreekuur|sociaal spreekuur|diagnose|behandeling|klacht/);
+  assert.doesNotMatch(allContent, /diagnose|behandeling|klacht/);
+});
+
+test("sociaal spreekuur wordt herkenbaar in de patiëntmail genoemd", () => {
+  const content = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    program: getPatientSurveyProgramContext(SurveyAudience.SOCIAL_PATIENT),
+  });
+  const allContent = `${content.textContent}\n${content.htmlContent}`.toLowerCase();
+
+  assert.match(allContent, /sociaal spreekuur/);
+  assert.doesNotMatch(allContent, /beweegspreekuur/);
+});
+
+test("professionele vragenlijstmail blijft algemeen", () => {
+  const content = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+  });
+  const allContent = `${content.subject}\n${content.textContent}\n${content.htmlContent}`.toLowerCase();
+
+  assert.doesNotMatch(allContent, /beweegspreekuur|sociaal spreekuur/);
 });
 
 test("Brevo-webhook wordt zonder e-mailadres naar een interne status vertaald", () => {
