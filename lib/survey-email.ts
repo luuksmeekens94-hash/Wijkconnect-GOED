@@ -1,3 +1,5 @@
+import type { PatientSurveyProgramContext } from "@/lib/survey-program-context";
+
 export type SurveyEmailContent = {
   subject: string;
   textContent: string;
@@ -27,6 +29,7 @@ export function buildSurveyEmail(input: {
   surveyUrl: string;
   reminder?: boolean;
   expiresAt?: Date | null;
+  program?: PatientSurveyProgramContext | null;
 }): SurveyEmailContent {
   const surveyUrl = new URL(input.surveyUrl);
   if (!["https:", "http:"].includes(surveyUrl.protocol)) {
@@ -36,25 +39,31 @@ export function buildSurveyEmail(input: {
   const reminder = input.reminder ?? false;
   const expiryDate = formatExpiryDate(input.expiresAt);
   const subject = reminder ? "Herinnering: wilt u uw ervaring delen?" : "Wilt u uw ervaring met ons delen?";
-  const introduction = reminder
-    ? "Onlangs ontving u van ons een uitnodiging voor een korte vragenlijst. Als u deze nog niet heeft ingevuld, horen wij graag uw ervaring."
-    : "Wij horen graag hoe u onze dienstverlening heeft ervaren. Daarom nodigen wij u uit voor een korte vragenlijst.";
+  const introduction = input.program
+    ? reminder
+      ? `Onlangs ontving u van ons een uitnodiging voor een korte vragenlijst over ${input.program.sentenceName}. Als u deze nog niet heeft ingevuld, horen wij graag uw ervaring.`
+      : `U ontvangt deze uitnodiging omdat u onlangs ${input.program.sentenceName} bij De Schakel heeft bezocht. Wij horen graag hoe u het spreekuur heeft ervaren.`
+    : reminder
+      ? "Onlangs ontving u van ons een uitnodiging voor een korte vragenlijst. Als u deze nog niet heeft ingevuld, horen wij graag uw ervaring."
+      : "Wij horen graag hoe u onze dienstverlening heeft ervaren. Daarom nodigen wij u uit voor een korte vragenlijst.";
   const expiryText = expiryDate ? ` U kunt de vragenlijst invullen tot en met ${expiryDate}.` : "";
 
   const textContent = [
     "Beste meneer/mevrouw,",
     "",
+    ...(input.program ? [`Deze vragenlijst gaat over: ${input.program.displayName}`, ""] : []),
     introduction,
     `Invullen duurt maar enkele minuten.${expiryText}`,
     "",
     `Open de vragenlijst: ${surveyUrl.toString()}`,
     "",
-    "Uw antwoorden worden vertrouwelijk verwerkt. In deze e-mail staan bewust geen persoonlijke of medische gegevens.",
+    "Uw antwoorden worden vertrouwelijk verwerkt. Uw naam en antwoorden staan niet in deze e-mail.",
     "Heeft u de vragenlijst al ingevuld? Dan hoeft u niets meer te doen.",
     "Wilt u geen evaluatie-uitnodigingen meer ontvangen? Beantwoord deze e-mail; dan blokkeren wij vervolguitnodigingen.",
     "",
     "Met vriendelijke groet,",
-    "WijkConnect",
+    "Huisartsenpraktijk De Schakel",
+    "via WijkConnect",
   ].join("\n");
 
   const escapedUrl = escapeHtml(surveyUrl.toString());
@@ -67,14 +76,16 @@ export function buildSurveyEmail(input: {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:16px">
           <tr><td style="padding:32px">
             <p style="margin:0 0 20px;font-size:13px;font-weight:700;letter-spacing:2px;color:#2563eb">WIJKCONNECT</p>
+            ${input.program ? `<p style="display:inline-block;margin:0 0 16px;padding:7px 11px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:13px;font-weight:700">${escapeHtml(input.program.displayName)}</p>` : ""}
             <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${escapeHtml(subject)}</h1>
             <p style="margin:0 0 16px;line-height:1.6">Beste meneer/mevrouw,</p>
             <p style="margin:0 0 16px;line-height:1.6">${escapeHtml(introduction)}</p>
             <p style="margin:0 0 24px;line-height:1.6">Invullen duurt maar enkele minuten.${escapeHtml(expiryText)}</p>
             <p style="margin:0 0 28px"><a href="${escapedUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:10px">Vragenlijst openen</a></p>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569">Uw antwoorden worden vertrouwelijk verwerkt. In deze e-mail staan bewust geen persoonlijke of medische gegevens.</p>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569">Uw antwoorden worden vertrouwelijk verwerkt. Uw naam en antwoorden staan niet in deze e-mail.</p>
             <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569">Heeft u de vragenlijst al ingevuld? Dan hoeft u niets meer te doen.</p>
-            <p style="margin:0;font-size:14px;line-height:1.6;color:#475569">Wilt u geen evaluatie-uitnodigingen meer ontvangen? Beantwoord deze e-mail; dan blokkeren wij vervolguitnodigingen.</p>
+            <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569">Wilt u geen evaluatie-uitnodigingen meer ontvangen? Beantwoord deze e-mail; dan blokkeren wij vervolguitnodigingen.</p>
+            <p style="margin:0;font-size:14px;line-height:1.6;color:#0f172a">Met vriendelijke groet,<br><strong>Huisartsenpraktijk De Schakel</strong><br><span style="color:#64748b">via WijkConnect</span></p>
           </td></tr>
         </table>
       </td></tr>
