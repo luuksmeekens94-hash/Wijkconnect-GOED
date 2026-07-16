@@ -10,6 +10,7 @@ import {
   SurveyRecipientType,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAuditLog } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -224,9 +225,9 @@ export async function createSurveyInvitation(formData: FormData) {
     });
   }).catch((error: unknown) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new Error(parsed.data.recipientType === SurveyRecipientType.PROFESSIONAL
-        ? "Deze professional heeft voor deze vragenlijst en campagneperiode al een uitnodiging"
-        : "Voor deze afspraak staat al een vragenlijstuitnodiging klaar");
+      redirect(parsed.data.recipientType === SurveyRecipientType.PROFESSIONAL
+        ? "/monitoring/vragenlijsten?melding=professionele-uitnodiging-bestaat-al"
+        : "/monitoring/vragenlijsten?melding=patientuitnodiging-bestaat-al");
     }
     throw error;
   });
@@ -244,6 +245,7 @@ export async function createSurveyInvitation(formData: FormData) {
     },
   });
   revalidatePath("/monitoring/vragenlijsten");
+  redirect("/monitoring/vragenlijsten?melding=uitnodiging-klaargezet");
 }
 
 export async function updateSurveyInvitationStatus(formData: FormData) {
@@ -277,6 +279,18 @@ export async function updateSurveyInvitationStatus(formData: FormData) {
 export async function sendPreparedSurveyInvitation(formData: FormData) {
   const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
   const invitationId = z.string().min(1).max(128).parse(formData.get("invitationId"));
-  await sendSurveyInvitationEmail(invitationId, user.id);
+
+  try {
+    await sendSurveyInvitationEmail(invitationId, user.id);
+  } catch (error) {
+    console.error("Survey invitation delivery failed", {
+      invitationId,
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    revalidatePath("/monitoring/vragenlijsten");
+    redirect("/monitoring/vragenlijsten?melding=verzending-mislukt");
+  }
+
   revalidatePath("/monitoring/vragenlijsten");
+  redirect("/monitoring/vragenlijsten?melding=uitnodiging-verstuurd");
 }
