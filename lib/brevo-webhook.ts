@@ -2,6 +2,7 @@ export type BrevoWebhookEvent = {
   event: string;
   messageId: string | null;
   invitationId: string | null;
+  attemptId: string | null;
   messageKind: "invitation" | "reminder" | null;
   occurredAt: Date;
   reasonCode: string | null;
@@ -11,20 +12,22 @@ function safeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function parseCorrelation(value: unknown): Pick<BrevoWebhookEvent, "invitationId" | "messageKind"> {
-  if (typeof value !== "string") return { invitationId: null, messageKind: null };
+function parseCorrelation(value: unknown): Pick<BrevoWebhookEvent, "invitationId" | "attemptId" | "messageKind"> {
+  if (typeof value !== "string") return { invitationId: null, attemptId: null, messageKind: null };
   try {
     const parsed = JSON.parse(value) as {
       wijkconnectInvitationId?: unknown;
+      wijkconnectDeliveryAttemptId?: unknown;
       wijkconnectMessageKind?: unknown;
     };
     const kind = safeString(parsed.wijkconnectMessageKind);
     return {
       invitationId: safeString(parsed.wijkconnectInvitationId),
+      attemptId: safeString(parsed.wijkconnectDeliveryAttemptId),
       messageKind: kind === "invitation" || kind === "reminder" ? kind : null,
     };
   } catch {
-    return { invitationId: null, messageKind: null };
+    return { invitationId: null, attemptId: null, messageKind: null };
   }
 }
 
@@ -88,6 +91,7 @@ export function decideBrevoWebhookTransition(
 ) {
   const isTerminal = state.deliveryStatus === "SUPPRESSED" || terminalWebhookEvents.has(state.lastDeliveryErrorCode ?? "");
   if (kind === "ignored") return "ignored" as const;
+  if (state.deliveryStatus === "SUPPRESSED") return "ignored" as const;
   if (kind === "delivered") {
     if (isTerminal || (state.deliveryStatus === "DELIVERED" && state.deliveredAt)) return "ignored" as const;
     return "delivered" as const;
@@ -96,10 +100,9 @@ export function decideBrevoWebhookTransition(
     if (isTerminal || state.deliveryStatus === "DELIVERED") return "ignored" as const;
     return "transient-bounce" as const;
   }
-  if (
-    (kind === "complaint" && state.deliveryStatus === "SUPPRESSED" && state.lastDeliveryErrorCode === event) ||
-    (kind === "permanent-bounce" && state.deliveryStatus === "BOUNCED" && state.lastDeliveryErrorCode === event)
-  ) return "ignored" as const;
+  if (kind === "permanent-bounce" && state.deliveryStatus === "BOUNCED" && state.lastDeliveryErrorCode === event) {
+    return "ignored" as const;
+  }
   return kind;
 }
 
@@ -130,4 +133,20 @@ export function brevoCorrelationMatches(
   return expectedMessageIds.some((messageId) =>
     messageId ? normalizeBrevoMessageId(messageId) === normalizedEventId : false,
   );
+}
+
+export function brevoDeliveryAttemptCorrelationMatches(
+  event: Pick<BrevoWebhookEvent, "invitationId" | "attemptId" | "messageId" | "messageKind">,
+  attempt: {
+    id: string;
+    invitationId: string;
+    kind: "INVITATION" | "REMINDER";
+    providerMessageId: string | null;
+  },
+) {
+  if (!event.invitationId || !event.messageId || event.invitationId !== attempt.invitationId) return false;
+  if (event.attemptId && event.attemptId !== attempt.id) return false;
+  if (event.messageKind && event.messageKind.toUpperCase() !== attempt.kind) return false;
+  if (!attempt.providerMessageId) return event.attemptId === attempt.id;
+  return normalizeBrevoMessageId(event.messageId) === normalizeBrevoMessageId(attempt.providerMessageId);
 }

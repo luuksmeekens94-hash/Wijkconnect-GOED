@@ -3,6 +3,7 @@ import test from "node:test";
 import { SurveyAudience } from "@prisma/client";
 import { isBrevoConfigured, sendBrevoTransactionalEmail } from "../lib/brevo.ts";
 import {
+  brevoDeliveryAttemptCorrelationMatches,
   brevoCorrelationMatches,
   decideBrevoWebhookTransition,
   parseBrevoWebhookEvent,
@@ -10,6 +11,12 @@ import {
 } from "../lib/brevo-webhook.ts";
 import { bearerTokenFromRequest, verifyLongSecret, verifySameOrigin } from "../lib/request-security.ts";
 import { buildSurveyEmail } from "../lib/survey-email.ts";
+import { canSendManualSurveyReminder } from "../lib/survey-reminder-policy.ts";
+import {
+  brevoFailureIsUncertain,
+  surveyDeliveryAttemptIdempotencyKey,
+  surveyDeliveryAttemptNeedsReview,
+} from "../lib/survey-delivery-attempt.ts";
 import { getPatientSurveyProgramContext } from "../lib/survey-program-context.ts";
 
 test("Brevo-client gebruikt uitsluitend serverconfiguratie en de officiële v3-vorm", async () => {
@@ -38,7 +45,7 @@ test("Brevo-client gebruikt uitsluitend serverconfiguratie en de officiële v3-v
       textContent: "Tekst",
       htmlContent: "<p>Tekst</p>",
       idempotencyKey: "survey-test-id",
-      correlation: { invitationId: "invitation-1", kind: "invitation" },
+      correlation: { invitationId: "invitation-1", attemptId: "attempt-1", kind: "invitation" },
     }, fetchMock);
 
     assert.equal(requestUrl, "https://api.brevo.com/v3/smtp/email");
@@ -48,6 +55,7 @@ test("Brevo-client gebruikt uitsluitend serverconfiguratie en de officiële v3-v
     assert.equal((requestBody.headers as Record<string, string>)["X-Mailin-custom"], JSON.stringify({
       wijkconnectInvitationId: "invitation-1",
       wijkconnectMessageKind: "invitation",
+      wijkconnectDeliveryAttemptId: "attempt-1",
     }));
     assert.equal(JSON.stringify(requestBody).includes("test-api-key"), false);
   } finally {
@@ -127,6 +135,65 @@ test("professionele vragenlijstmail blijft algemeen", () => {
   assert.doesNotMatch(allContent, /beweegspreekuur|sociaal spreekuur/);
 });
 
+test("een verstuurde vragenlijst kan handmatig opnieuw worden gemaild met afkoelperiode", () => {
+  const now = new Date("2026-07-17T10:00:00Z");
+  const invitation = {
+    status: "SENT" as const,
+    deliveryStatus: "DELIVERED" as const,
+    sentAt: new Date("2026-07-16T10:00:00Z"),
+    reminderSentAt: null,
+    lastDeliveryErrorCode: null,
+    completedAt: null,
+    expiresAt: new Date("2026-08-01T10:00:00Z"),
+  };
+
+  assert.equal(canSendManualSurveyReminder(invitation, now), true);
+  assert.equal(canSendManualSurveyReminder({ ...invitation, reminderSentAt: new Date("2026-07-17T09:58:00Z") }, now), false);
+  assert.equal(canSendManualSurveyReminder({ ...invitation, reminderSentAt: new Date("2026-07-17T09:54:00Z") }, now), true);
+  assert.equal(canSendManualSurveyReminder({
+    ...invitation,
+    reminderSentAt: new Date("2026-07-17T09:59:00Z"),
+    lastDeliveryErrorCode: "REMINDER_UNCERTAIN",
+  }, now), false);
+  assert.equal(canSendManualSurveyReminder({
+    ...invitation,
+    reminderSentAt: new Date("2026-07-17T09:57:00Z"),
+    lastDeliveryErrorCode: "REMINDER_UNCERTAIN",
+  }, now), true);
+  assert.equal(canSendManualSurveyReminder({ ...invitation, completedAt: new Date("2026-07-17T09:00:00Z") }, now), false);
+});
+
+test("een retry houdt dezelfde persistente idempotency-sleutel en een nieuwe mail krijgt een nieuwe", () => {
+  const firstAttemptId = "a1f74a20-ded5-42f6-96e8-aa584a0520ca";
+  const retryKey = surveyDeliveryAttemptIdempotencyKey(firstAttemptId);
+  assert.equal(retryKey, firstAttemptId);
+  assert.equal(retryKey, surveyDeliveryAttemptIdempotencyKey(firstAttemptId));
+  assert.notEqual(retryKey, surveyDeliveryAttemptIdempotencyKey("db5df4b6-abcc-471f-b66e-ed19ea13dd7e"));
+});
+
+test("een onzekere verzending wordt na het veilige retryvenster zichtbaar geblokkeerd", () => {
+  const now = new Date("2026-07-17T10:00:00Z");
+  assert.equal(surveyDeliveryAttemptNeedsReview({
+    status: "UNCERTAIN",
+    retryUntil: new Date("2026-07-17T09:59:59Z"),
+  }, now), true);
+  assert.equal(surveyDeliveryAttemptNeedsReview({
+    status: "UNCERTAIN",
+    retryUntil: new Date("2026-07-17T10:01:00Z"),
+  }, now), false);
+  assert.equal(surveyDeliveryAttemptNeedsReview({
+    status: "SENT",
+    retryUntil: new Date("2026-07-17T09:00:00Z"),
+  }, now), false);
+});
+
+test("Brevo duplicate_parameter blijft een onzekere eerdere verwerking en geen nieuwe verzending", () => {
+  assert.equal(brevoFailureIsUncertain(400, "duplicate_parameter"), true);
+  assert.equal(brevoFailureIsUncertain(429, "rate_limit"), true);
+  assert.equal(brevoFailureIsUncertain(503, "unavailable"), true);
+  assert.equal(brevoFailureIsUncertain(400, "invalid_parameter"), false);
+});
+
 test("Brevo-webhook wordt zonder e-mailadres naar een interne status vertaald", () => {
   const event = parseBrevoWebhookEvent({
     event: "hard_bounce",
@@ -141,12 +208,61 @@ test("Brevo-webhook wordt zonder e-mailadres naar een interne status vertaald", 
   });
 
   assert.equal(event?.invitationId, "invitation-2");
+  assert.equal(event?.attemptId, null);
   assert.equal(event?.messageKind, "invitation");
   assert.equal(event?.messageId, "provider-id");
   assert.equal(webhookEventKind(event?.event ?? ""), "permanent-bounce");
   assert.equal(Object.hasOwn(event ?? {}, "email"), false);
   assert.equal(webhookEventKind("spam"), "complaint");
   assert.equal(webhookEventKind("opened"), "ignored");
+});
+
+test("webhooks blijven aan iedere afzonderlijke verzendpoging te koppelen", () => {
+  const oldAttempt = {
+    id: "attempt-oud",
+    invitationId: "invitation-1",
+    kind: "REMINDER" as const,
+    providerMessageId: "<provider-oud>",
+  };
+  const latestAttempt = {
+    id: "attempt-nieuw",
+    invitationId: "invitation-1",
+    kind: "REMINDER" as const,
+    providerMessageId: "provider-nieuw",
+  };
+
+  assert.equal(brevoDeliveryAttemptCorrelationMatches({
+    invitationId: "invitation-1",
+    attemptId: "attempt-oud",
+    messageId: "provider-oud",
+    messageKind: "reminder",
+  }, oldAttempt), true);
+  assert.equal(brevoDeliveryAttemptCorrelationMatches({
+    invitationId: "invitation-1",
+    attemptId: "attempt-oud",
+    messageId: "provider-oud",
+    messageKind: "reminder",
+  }, latestAttempt), false);
+  assert.equal(brevoDeliveryAttemptCorrelationMatches({
+    invitationId: "invitation-1",
+    attemptId: "attempt-nieuw",
+    messageId: "provider-nieuw",
+    messageKind: "invitation",
+  }, latestAttempt), false);
+});
+
+test("een snelle webhook mag de provider-ID aan de juiste persistente poging binden", () => {
+  assert.equal(brevoDeliveryAttemptCorrelationMatches({
+    invitationId: "invitation-1",
+    attemptId: "attempt-1",
+    messageId: "provider-1",
+    messageKind: "reminder",
+  }, {
+    id: "attempt-1",
+    invitationId: "invitation-1",
+    kind: "REMINDER",
+    providerMessageId: null,
+  }), true);
 });
 
 test("webhookcorrelatie vereist zowel hetzelfde uitnodigingsnummer als providerbericht", () => {
@@ -211,6 +327,11 @@ test("dubbele en vertraagde webhooks veranderen terminale statussen niet", () =>
     deliveredAt: null,
   }), "delivered");
   assert.equal(decideBrevoWebhookTransition("complaint", "spam", {
+    deliveryStatus: "SUPPRESSED",
+    lastDeliveryErrorCode: "spam",
+    deliveredAt: null,
+  }), "ignored");
+  assert.equal(decideBrevoWebhookTransition("permanent-bounce", "hard_bounce", {
     deliveryStatus: "SUPPRESSED",
     lastDeliveryErrorCode: "spam",
     deliveredAt: null,
