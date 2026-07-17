@@ -14,7 +14,9 @@ import { formatDateInput, surveyAudienceLabels } from "@/lib/monitoring";
 import { prisma } from "@/lib/prisma";
 import { surveyCampaignPeriodForDate, surveyCampaignPeriodOptions } from "@/lib/survey-campaign";
 import { decryptSurveyRecipientEmail, maskSurveyRecipientEmail } from "@/lib/survey-security";
-import { createSurveyInvitation, initializeVeznSurveyTemplates, sendPreparedSurveyInvitation, updateSurveyInvitationStatus } from "@/lib/survey-actions";
+import { canSendManualSurveyReminder } from "@/lib/survey-reminder-policy";
+import { surveyDeliveryAttemptNeedsReview } from "@/lib/survey-delivery-attempt";
+import { createSurveyInvitation, initializeVeznSurveyTemplates, resendSurveyInvitation, sendPreparedSurveyInvitation, updateSurveyInvitationStatus } from "@/lib/survey-actions";
 
 const invitationStatusLabels: Record<SurveyInvitationStatus, string> = {
   DRAFT: "Concept",
@@ -43,7 +45,7 @@ const patientAudiences = new Set<SurveyAudience>([
 
 const surveyActionMessages = {
   "professionele-uitnodiging-bestaat-al": {
-    text: "Voor deze professional staat voor deze vragenlijst en campagneperiode al een uitnodiging klaar. Gebruik de bestaande uitnodiging in het overzicht.",
+    text: "Voor deze professional bestaat deze kwartaaluitnodiging al. Is de mail al verstuurd, gebruik dan bij de bestaande uitnodiging de knop Nogmaals mailen.",
     className: "border-amber-200 bg-amber-50 text-amber-900",
   },
   "patientuitnodiging-bestaat-al": {
@@ -57,6 +59,18 @@ const surveyActionMessages = {
   "uitnodiging-verstuurd": {
     text: "De uitnodiging is aangeboden aan de e-mailprovider. De actuele bezorgstatus verschijnt in het overzicht.",
     className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  "uitnodiging-niet-mogelijk": {
+    text: "De uitnodiging kon niet opnieuw worden aangeboden. Controleer de status in het overzicht; bij een onzekere providerstatus wordt veilig geen nieuwe mail gestart.",
+    className: "border-amber-200 bg-amber-50 text-amber-900",
+  },
+  "herinnering-verstuurd": {
+    text: "De vragenlijstmail is opnieuw aangeboden. Dezelfde veilige vragenlijstlink blijft actief en er ontstaat geen dubbel responsrecord.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  "herinnering-niet-mogelijk": {
+    text: "De mail kon niet opnieuw worden aangeboden. Mogelijk is de vragenlijst al ingevuld, verlopen of in de afgelopen vijf minuten al opnieuw verstuurd.",
+    className: "border-amber-200 bg-amber-50 text-amber-900",
   },
   "verzending-mislukt": {
     text: "De e-mail kon niet worden verzonden. De uitnodiging is niet dubbel verstuurd en kan na controle opnieuw worden aangeboden.",
@@ -92,7 +106,7 @@ export default async function SurveyCenterPage({ searchParams }: SurveyCenterPag
   const actionMessage = surveyActionMessage((await searchParams).melding);
   const [templates, invitations, eligibleAppointments] = await Promise.all([
     prisma.surveyTemplate.findMany({ include: { _count: { select: { questions: true, invitations: true } } }, orderBy: [{ audience: "asc" }, { version: "desc" }] }),
-    prisma.surveyInvitation.findMany({ include: { template: true, recipient: true, response: true, case: { include: { participant: true } } }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.surveyInvitation.findMany({ include: { template: true, recipient: true, response: true, deliveryAttempts: { orderBy: { createdAt: "desc" }, take: 1 }, case: { include: { participant: true } } }, orderBy: { createdAt: "desc" }, take: 100 }),
     prisma.monitoringAppointment.findMany({
       where: {
         evaluationEligible: true,
@@ -170,16 +184,23 @@ export default async function SurveyCenterPage({ searchParams }: SurveyCenterPag
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Uitnodigingen</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-900">Voortgang en respons</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Een al verstuurde, nog niet ingevulde vragenlijst kun je met <strong>Nogmaals mailen</strong> opnieuw aanbieden. Dezelfde link en registratie blijven behouden.</p>
           <div className="mt-5 space-y-3">
             {invitations.map((invitation) => (
               <div key={invitation.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div><p className="font-medium text-slate-900">{invitation.template.name}</p><p className="mt-1 text-xs text-slate-500">{invitation.case ? `Patiëntcode ···${invitation.case.participant.pseudonymCode.slice(-8)}` : `Professionele doelgroep${invitation.campaignPeriod ? ` · campagne ${invitation.campaignPeriod}` : ""}`} · {recipientEmailLabel(invitation.recipient)} · aangemaakt {new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(invitation.createdAt)}</p><p className="mt-1 text-xs text-slate-500">{invitation.response ? "Respons ontvangen" : invitationStatusLabels[invitation.status]} · {deliveryStatusLabels[invitation.deliveryStatus]}</p></div>
+                  <div><p className="font-medium text-slate-900">{invitation.template.name}</p><p className="mt-1 text-xs text-slate-500">{invitation.case ? `Patiëntcode ···${invitation.case.participant.pseudonymCode.slice(-8)}` : `Professionele doelgroep${invitation.campaignPeriod ? ` · campagne ${invitation.campaignPeriod}` : ""}`} · {recipientEmailLabel(invitation.recipient)} · aangemaakt {new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(invitation.createdAt)}</p><p className="mt-1 text-xs text-slate-500">{invitation.response ? "Respons ontvangen" : invitationStatusLabels[invitation.status]} · {deliveryStatusLabels[invitation.deliveryStatus]}</p>{invitation.reminderSentAt ? <p className="mt-1 text-xs text-slate-500">Laatste extra mail: {new Intl.DateTimeFormat("nl-NL", { dateStyle: "short", timeStyle: "short" }).format(invitation.reminderSentAt)}</p> : null}{surveyDeliveryAttemptNeedsReview(invitation.deliveryAttempts[0]) ? <p className="mt-2 text-xs font-medium text-amber-700">Controle nodig: Brevo heeft de laatste verzending niet definitief bevestigd. Om dubbel mailen te voorkomen is opnieuw verzenden geblokkeerd.</p> : null}</div>
                   <div className="flex flex-wrap gap-2">
-                    {invitation.status === SurveyInvitationStatus.READY && (invitation.deliveryStatus === SurveyDeliveryStatus.PENDING || invitation.deliveryStatus === SurveyDeliveryStatus.FAILED) ? (
+                    {!surveyDeliveryAttemptNeedsReview(invitation.deliveryAttempts[0]) && invitation.status === SurveyInvitationStatus.READY && (invitation.deliveryStatus === SurveyDeliveryStatus.PENDING || invitation.deliveryStatus === SurveyDeliveryStatus.FAILED) ? (
                       <form action={sendPreparedSurveyInvitation}>
                         <input type="hidden" name="invitationId" value={invitation.id} />
                         <button disabled={!emailDeliveryConfigured} className="rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white disabled:bg-slate-300">{invitation.deliveryStatus === SurveyDeliveryStatus.FAILED ? "Opnieuw versturen" : "Nu versturen"}</button>
+                      </form>
+                    ) : null}
+                    {!surveyDeliveryAttemptNeedsReview(invitation.deliveryAttempts[0]) && !invitation.response && invitation.recipient?.emailEncrypted && canSendManualSurveyReminder(invitation) ? (
+                      <form action={resendSurveyInvitation}>
+                        <input type="hidden" name="invitationId" value={invitation.id} />
+                        <button disabled={!emailDeliveryConfigured} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white disabled:bg-slate-300">Nogmaals mailen</button>
                       </form>
                     ) : null}
                     {[SurveyInvitationStatus.DRAFT, SurveyInvitationStatus.READY, SurveyInvitationStatus.SENT, SurveyInvitationStatus.OPENED].some((status) => status === invitation.status) ? (

@@ -14,6 +14,7 @@ export type BrevoTransactionalEmail = {
   correlation: {
     invitationId: string;
     kind: "invitation" | "reminder";
+    attemptId?: string;
   };
   tags?: string[];
 };
@@ -65,6 +66,7 @@ function correlationHeaderValue(input: BrevoTransactionalEmail["correlation"]) {
   return JSON.stringify({
     wijkconnectInvitationId: input.invitationId,
     wijkconnectMessageKind: input.kind,
+    ...(input.attemptId ? { wijkconnectDeliveryAttemptId: input.attemptId } : {}),
   });
 }
 

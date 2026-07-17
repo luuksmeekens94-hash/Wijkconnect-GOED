@@ -16,7 +16,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isSurveyCampaignPeriod, normalizeSurveyCampaignPeriod } from "@/lib/survey-campaign";
-import { sendSurveyInvitationEmail } from "@/lib/survey-delivery";
+import { sendManualSurveyReminderEmail, sendSurveyInvitationEmail } from "@/lib/survey-delivery";
 import {
   encryptSurveyRecipientEmail,
   fingerprintSurveyRecipientEmail,
@@ -280,8 +280,10 @@ export async function sendPreparedSurveyInvitation(formData: FormData) {
   const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
   const invitationId = z.string().min(1).max(128).parse(formData.get("invitationId"));
 
+  let outcome: Awaited<ReturnType<typeof sendSurveyInvitationEmail>>["outcome"];
   try {
-    await sendSurveyInvitationEmail(invitationId, user.id);
+    const result = await sendSurveyInvitationEmail(invitationId, user.id);
+    outcome = result.outcome;
   } catch (error) {
     console.error("Survey invitation delivery failed", {
       invitationId,
@@ -292,5 +294,30 @@ export async function sendPreparedSurveyInvitation(formData: FormData) {
   }
 
   revalidatePath("/monitoring/vragenlijsten");
-  redirect("/monitoring/vragenlijsten?melding=uitnodiging-verstuurd");
+  redirect(outcome === "sent"
+    ? "/monitoring/vragenlijsten?melding=uitnodiging-verstuurd"
+    : "/monitoring/vragenlijsten?melding=uitnodiging-niet-mogelijk");
+}
+
+export async function resendSurveyInvitation(formData: FormData) {
+  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const invitationId = z.string().min(1).max(128).parse(formData.get("invitationId"));
+
+  let outcome: Awaited<ReturnType<typeof sendManualSurveyReminderEmail>>["outcome"];
+  try {
+    const result = await sendManualSurveyReminderEmail(invitationId, user.id);
+    outcome = result.outcome;
+  } catch (error) {
+    console.error("Survey reminder delivery failed", {
+      invitationId,
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    revalidatePath("/monitoring/vragenlijsten");
+    redirect("/monitoring/vragenlijsten?melding=verzending-mislukt");
+  }
+
+  revalidatePath("/monitoring/vragenlijsten");
+  redirect(outcome === "sent"
+    ? "/monitoring/vragenlijsten?melding=herinnering-verstuurd"
+    : "/monitoring/vragenlijsten?melding=herinnering-niet-mogelijk");
 }
