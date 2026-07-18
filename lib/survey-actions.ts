@@ -6,6 +6,7 @@ import {
   MonitoringProgram,
   Prisma,
   SurveyAudience,
+  SurveyDeliveryAttemptStatus,
   SurveyInvitationStatus,
   SurveyRecipientType,
 } from "@prisma/client";
@@ -252,28 +253,53 @@ export async function updateSurveyInvitationStatus(formData: FormData) {
   const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
   const invitationId = String(formData.get("invitationId") ?? "");
   const status = z.literal(SurveyInvitationStatus.CANCELLED).parse(formData.get("status"));
-  const existing = await prisma.surveyInvitation.findUnique({
-    where: { id: invitationId },
-    select: { appointmentId: true },
-  });
-  if (!existing) throw new Error("Uitnodiging niet gevonden");
-  const changed = await prisma.surveyInvitation.updateMany({
-    where: {
-      id: invitationId,
-      status: {
-        in: [
-          SurveyInvitationStatus.DRAFT,
-          SurveyInvitationStatus.READY,
-          SurveyInvitationStatus.SENT,
-          SurveyInvitationStatus.OPENED,
-        ],
+  const changed = await prisma.$transaction(async (transaction) => {
+    // Serialize cancellation against a delivery claim. The follow-up statement
+    // then sees any attempt committed by a sender that acquired this row first.
+    await transaction.$queryRaw(Prisma.sql`
+      SELECT "id"
+      FROM "wijkconnect"."SurveyInvitation"
+      WHERE "id" = ${invitationId}
+      FOR UPDATE
+    `);
+    const result = await transaction.surveyInvitation.updateMany({
+      where: {
+        id: invitationId,
+        status: {
+          in: [
+            SurveyInvitationStatus.DRAFT,
+            SurveyInvitationStatus.READY,
+            SurveyInvitationStatus.SENT,
+            SurveyInvitationStatus.OPENED,
+          ],
+        },
+        deliveryAttempts: {
+          none: {
+            status: {
+              in: [SurveyDeliveryAttemptStatus.QUEUED, SurveyDeliveryAttemptStatus.UNCERTAIN],
+            },
+          },
+        },
       },
-    },
-    data: { status, dedupeKey: existing.appointmentId ? null : undefined },
+      data: { status, dedupeKey: null },
+    });
+    if (result.count !== 1) return 0;
+    await transaction.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "SURVEY_INVITATION_STATUS_UPDATED",
+        entityType: "SURVEY_INVITATION",
+        entityId: invitationId,
+        details: { status },
+      },
+    });
+    return result.count;
   });
-  if (changed.count !== 1) throw new Error("Deze uitnodiging kan niet meer worden geannuleerd");
-  await writeAuditLog({ userId: user.id, action: "SURVEY_INVITATION_STATUS_UPDATED", entityType: "SURVEY_INVITATION", entityId: invitationId, details: { status } });
+  if (changed !== 1) {
+    redirect("/monitoring/vragenlijsten?melding=uitnodiging-annuleren-niet-mogelijk");
+  }
   revalidatePath("/monitoring/vragenlijsten");
+  redirect("/monitoring/vragenlijsten?melding=uitnodiging-geannuleerd");
 }
 
 export async function sendPreparedSurveyInvitation(formData: FormData) {
@@ -308,7 +334,7 @@ export async function resendSurveyInvitation(formData: FormData) {
     const result = await sendManualSurveyReminderEmail(invitationId, user.id);
     outcome = result.outcome;
   } catch (error) {
-    console.error("Survey reminder delivery failed", {
+    console.error("Survey invitation resend failed", {
       invitationId,
       errorName: error instanceof Error ? error.name : "unknown",
     });
@@ -318,6 +344,6 @@ export async function resendSurveyInvitation(formData: FormData) {
 
   revalidatePath("/monitoring/vragenlijsten");
   redirect(outcome === "sent"
-    ? "/monitoring/vragenlijsten?melding=herinnering-verstuurd"
-    : "/monitoring/vragenlijsten?melding=herinnering-niet-mogelijk");
+    ? "/monitoring/vragenlijsten?melding=uitnodiging-opnieuw-verstuurd"
+    : "/monitoring/vragenlijsten?melding=opnieuw-versturen-niet-mogelijk");
 }
