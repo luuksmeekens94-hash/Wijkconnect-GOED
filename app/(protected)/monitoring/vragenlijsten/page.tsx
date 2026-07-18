@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { surveyCampaignPeriodForDate, surveyCampaignPeriodOptions } from "@/lib/survey-campaign";
 import { decryptSurveyRecipientEmail, maskSurveyRecipientEmail } from "@/lib/survey-security";
 import { canSendManualSurveyReminder } from "@/lib/survey-reminder-policy";
-import { surveyDeliveryAttemptNeedsReview } from "@/lib/survey-delivery-attempt";
+import { surveyDeliveryAttemptBlocksReset, surveyDeliveryAttemptNeedsReview } from "@/lib/survey-delivery-attempt";
 import { createSurveyInvitation, initializeVeznSurveyTemplates, resendSurveyInvitation, sendPreparedSurveyInvitation, updateSurveyInvitationStatus } from "@/lib/survey-actions";
 
 const invitationStatusLabels: Record<SurveyInvitationStatus, string> = {
@@ -64,12 +64,20 @@ const surveyActionMessages = {
     text: "De uitnodiging kon niet opnieuw worden aangeboden. Controleer de status in het overzicht; bij een onzekere providerstatus wordt veilig geen nieuwe mail gestart.",
     className: "border-amber-200 bg-amber-50 text-amber-900",
   },
-  "herinnering-verstuurd": {
+  "uitnodiging-opnieuw-verstuurd": {
     text: "De vragenlijstmail is opnieuw aangeboden. Dezelfde veilige vragenlijstlink blijft actief en er ontstaat geen dubbel responsrecord.",
     className: "border-emerald-200 bg-emerald-50 text-emerald-900",
   },
-  "herinnering-niet-mogelijk": {
+  "opnieuw-versturen-niet-mogelijk": {
     text: "De mail kon niet opnieuw worden aangeboden. Mogelijk is de vragenlijst al ingevuld, verlopen of in de afgelopen vijf minuten al opnieuw verstuurd.",
+    className: "border-amber-200 bg-amber-50 text-amber-900",
+  },
+  "uitnodiging-geannuleerd": {
+    text: "De oude uitnodiging en link zijn geannuleerd. De verzendhistorie blijft bewaard; u kunt nu met hetzelfde e-mailadres een nieuwe uitnodiging klaarzetten.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  },
+  "uitnodiging-annuleren-niet-mogelijk": {
+    text: "Annuleren is niet veilig mogelijk: Brevo verwerkt mogelijk nog een verzending, of de uitnodiging is al afgerond. Rond een openstaande verzendcontrole eerst af om dubbele e-mail te voorkomen.",
     className: "border-amber-200 bg-amber-50 text-amber-900",
   },
   "verzending-mislukt": {
@@ -203,7 +211,7 @@ export default async function SurveyCenterPage({ searchParams }: SurveyCenterPag
                         <button disabled={!emailDeliveryConfigured} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white disabled:bg-slate-300">Nogmaals mailen</button>
                       </form>
                     ) : null}
-                    {[SurveyInvitationStatus.DRAFT, SurveyInvitationStatus.READY, SurveyInvitationStatus.SENT, SurveyInvitationStatus.OPENED].some((status) => status === invitation.status) ? (
+                    {!surveyDeliveryAttemptBlocksReset(invitation.deliveryAttempts[0]) && [SurveyInvitationStatus.DRAFT, SurveyInvitationStatus.READY, SurveyInvitationStatus.SENT, SurveyInvitationStatus.OPENED].some((status) => status === invitation.status) ? (
                       <form action={updateSurveyInvitationStatus}>
                         <input type="hidden" name="invitationId" value={invitation.id} />
                         <input type="hidden" name="status" value={SurveyInvitationStatus.CANCELLED} />

@@ -1,10 +1,28 @@
-import type { PatientSurveyProgramContext } from "@/lib/survey-program-context";
+import type { SurveyEmailAudienceContext } from "@/lib/survey-program-context";
 
 export type SurveyEmailContent = {
   subject: string;
   textContent: string;
   htmlContent: string;
 };
+
+export function surveyEmailUsesReminderCopy(persistedMode: string) {
+  switch (persistedMode) {
+    case "initial":
+    case "manual-reminder":
+    case "legacy-initial":
+    case "legacy-fallback-initial":
+    case "legacy-unresolved-initial":
+      return false;
+    case "scheduled-reminder":
+    case "legacy-reminder":
+    case "legacy-fallback-reminder":
+    case "legacy-unresolved-reminder":
+      return true;
+    default:
+      throw new Error("Onbekende vragenlijst-verzendmodus");
+  }
+}
 
 function escapeHtml(value: string) {
   return value
@@ -29,7 +47,7 @@ export function buildSurveyEmail(input: {
   surveyUrl: string;
   reminder?: boolean;
   expiresAt?: Date | null;
-  program?: PatientSurveyProgramContext | null;
+  audience?: SurveyEmailAudienceContext | null;
 }): SurveyEmailContent {
   const surveyUrl = new URL(input.surveyUrl);
   if (!["https:", "http:"].includes(surveyUrl.protocol)) {
@@ -38,11 +56,11 @@ export function buildSurveyEmail(input: {
 
   const reminder = input.reminder ?? false;
   const expiryDate = formatExpiryDate(input.expiresAt);
-  const subject = reminder ? "Herinnering: wilt u uw ervaring delen?" : "Wilt u uw ervaring met ons delen?";
-  const introduction = input.program
-    ? reminder
-      ? `Onlangs ontving u van ons een uitnodiging voor een korte vragenlijst over ${input.program.sentenceName}. Als u deze nog niet heeft ingevuld, horen wij graag uw ervaring.`
-      : `U ontvangt deze uitnodiging omdat u onlangs ${input.program.sentenceName} bij De Schakel heeft bezocht. Wij horen graag hoe u het spreekuur heeft ervaren.`
+  const subject = input.audience
+    ? reminder ? input.audience.reminderSubject : input.audience.subject
+    : reminder ? "Herinnering: wilt u uw ervaring delen?" : "Wilt u uw ervaring met ons delen?";
+  const introduction = input.audience
+    ? reminder ? input.audience.reminderIntroduction : input.audience.introduction
     : reminder
       ? "Onlangs ontving u van ons een uitnodiging voor een korte vragenlijst. Als u deze nog niet heeft ingevuld, horen wij graag uw ervaring."
       : "Wij horen graag hoe u onze dienstverlening heeft ervaren. Daarom nodigen wij u uit voor een korte vragenlijst.";
@@ -51,7 +69,7 @@ export function buildSurveyEmail(input: {
   const textContent = [
     "Beste meneer/mevrouw,",
     "",
-    ...(input.program ? [`Deze vragenlijst gaat over: ${input.program.displayName}`, ""] : []),
+    ...(input.audience ? [`Deze vragenlijst gaat over: ${input.audience.badge}`, ""] : []),
     introduction,
     `Invullen duurt maar enkele minuten.${expiryText}`,
     "",
@@ -76,7 +94,7 @@ export function buildSurveyEmail(input: {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:16px">
           <tr><td style="padding:32px">
             <p style="margin:0 0 20px;font-size:13px;font-weight:700;letter-spacing:2px;color:#2563eb">WIJKCONNECT</p>
-            ${input.program ? `<p style="display:inline-block;margin:0 0 16px;padding:7px 11px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:13px;font-weight:700">${escapeHtml(input.program.displayName)}</p>` : ""}
+            ${input.audience ? `<p style="display:inline-block;margin:0 0 16px;padding:7px 11px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:13px;font-weight:700">${escapeHtml(input.audience.badge)}</p>` : ""}
             <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${escapeHtml(subject)}</h1>
             <p style="margin:0 0 16px;line-height:1.6">Beste meneer/mevrouw,</p>
             <p style="margin:0 0 16px;line-height:1.6">${escapeHtml(introduction)}</p>

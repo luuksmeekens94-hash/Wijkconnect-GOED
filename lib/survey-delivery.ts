@@ -16,13 +16,13 @@ import {
   type BrevoWebhookEvent,
 } from "@/lib/brevo-webhook";
 import { prisma } from "@/lib/prisma";
-import { buildSurveyEmail } from "@/lib/survey-email";
+import { buildSurveyEmail, surveyEmailUsesReminderCopy } from "@/lib/survey-email";
 import {
   brevoFailureIsUncertain,
   SURVEY_DELIVERY_PROVIDER,
   surveyDeliveryAttemptIdempotencyKey,
 } from "@/lib/survey-delivery-attempt";
-import { getPatientSurveyProgramContext } from "@/lib/survey-program-context";
+import { getSurveyEmailAudienceContext } from "@/lib/survey-program-context";
 import {
   canSendManualSurveyReminder,
   MANUAL_REMINDER_COOLDOWN_MINUTES,
@@ -456,9 +456,11 @@ async function deliverSurveyEmail(
   try {
     const emailContent = buildSurveyEmail({
       surveyUrl: publicSurveyUrl(current.id),
-      reminder,
+      // Retries must preserve the copy attached to the persisted idempotent attempt,
+      // even when another caller (cron or a manual action) reclaims that attempt.
+      reminder: surveyEmailUsesReminderCopy(attempt.mode),
       expiresAt: current.expiresAt,
-      program: getPatientSurveyProgramContext(current.template.audience),
+      audience: getSurveyEmailAudienceContext(current.template.audience),
     });
     const result = await sendBrevoTransactionalEmail({
       to: { email: decryptSurveyRecipientEmail(current.recipient.emailEncrypted) },
@@ -573,7 +575,13 @@ async function deliverSurveyEmail(
         action: reminder ? "SURVEY_REMINDER_SENT" : "SURVEY_INVITATION_SENT",
         entityType: "SURVEY_INVITATION",
         entityId: invitation.id,
-        details: { provider: SURVEY_DELIVERY_PROVIDER, mode, attemptId: attempt.id, outcome: deliveryOutcome },
+        details: {
+          provider: SURVEY_DELIVERY_PROVIDER,
+          mode: attempt.mode,
+          requestedMode: mode,
+          attemptId: attempt.id,
+          outcome: deliveryOutcome,
+        },
       },
     });
   } catch (error) {

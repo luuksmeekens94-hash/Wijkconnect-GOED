@@ -19,3 +19,9 @@ export function surveyDeliveryAttemptNeedsReview(
     attempt.retryUntil <= now,
   );
 }
+
+export function surveyDeliveryAttemptBlocksReset(
+  attempt: { status: "QUEUED" | "UNCERTAIN" | "SENT" | "FAILED" } | null | undefined,
+) {
+  return Boolean(attempt && (attempt.status === "QUEUED" || attempt.status === "UNCERTAIN"));
+}

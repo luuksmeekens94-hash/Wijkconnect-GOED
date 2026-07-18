@@ -10,14 +10,15 @@ import {
   webhookEventKind,
 } from "../lib/brevo-webhook.ts";
 import { bearerTokenFromRequest, verifyLongSecret, verifySameOrigin } from "../lib/request-security.ts";
-import { buildSurveyEmail } from "../lib/survey-email.ts";
+import { buildSurveyEmail, surveyEmailUsesReminderCopy } from "../lib/survey-email.ts";
 import { canSendManualSurveyReminder } from "../lib/survey-reminder-policy.ts";
 import {
   brevoFailureIsUncertain,
   surveyDeliveryAttemptIdempotencyKey,
+  surveyDeliveryAttemptBlocksReset,
   surveyDeliveryAttemptNeedsReview,
 } from "../lib/survey-delivery-attempt.ts";
-import { getPatientSurveyProgramContext } from "../lib/survey-program-context.ts";
+import { getSurveyEmailAudienceContext } from "../lib/survey-program-context.ts";
 
 test("Brevo-client gebruikt uitsluitend serverconfiguratie en de officiële v3-vorm", async () => {
   const previous = {
@@ -100,7 +101,7 @@ test("patiëntmail noemt het juiste spreekuur zonder de neutrale onderwerpregel 
   const content = buildSurveyEmail({
     surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
     expiresAt: new Date("2026-08-31T12:00:00Z"),
-    program: getPatientSurveyProgramContext(SurveyAudience.MOVEMENT_PATIENT),
+    audience: getSurveyEmailAudienceContext(SurveyAudience.MOVEMENT_PATIENT),
   });
   const allContent = `${content.subject}\n${content.textContent}\n${content.htmlContent}`.toLowerCase();
 
@@ -110,7 +111,7 @@ test("patiëntmail noemt het juiste spreekuur zonder de neutrale onderwerpregel 
   assert.match(content.textContent, /opaque-token/);
   assert.match(allContent, /beweegspreekuur/);
   assert.doesNotMatch(allContent, /sociaal spreekuur/);
-  assert.match(content.textContent, /bij de schakel heeft bezocht/i);
+  assert.match(content.textContent, /de schakel heeft bezocht/i);
   assert.match(content.textContent, /geen evaluatie-uitnodigingen meer ontvangen/i);
   assert.doesNotMatch(allContent, /diagnose|behandeling|klacht/);
 });
@@ -118,7 +119,7 @@ test("patiëntmail noemt het juiste spreekuur zonder de neutrale onderwerpregel 
 test("sociaal spreekuur wordt herkenbaar in de patiëntmail genoemd", () => {
   const content = buildSurveyEmail({
     surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
-    program: getPatientSurveyProgramContext(SurveyAudience.SOCIAL_PATIENT),
+    audience: getSurveyEmailAudienceContext(SurveyAudience.SOCIAL_PATIENT),
   });
   const allContent = `${content.textContent}\n${content.htmlContent}`.toLowerCase();
 
@@ -126,13 +127,74 @@ test("sociaal spreekuur wordt herkenbaar in de patiëntmail genoemd", () => {
   assert.doesNotMatch(allContent, /beweegspreekuur/);
 });
 
-test("professionele vragenlijstmail blijft algemeen", () => {
-  const content = buildSurveyEmail({
+test("iedere bestaande professionele doelgroep krijgt een passende eigen mail", () => {
+  const huisarts = buildSurveyEmail({
     surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    audience: getSurveyEmailAudienceContext(SurveyAudience.GP),
   });
-  const allContent = `${content.subject}\n${content.textContent}\n${content.htmlContent}`.toLowerCase();
+  assert.match(`${huisarts.subject}\n${huisarts.textContent}`, /huisarts/i);
+  assert.match(huisarts.textContent, /beweegspreekuur/i);
+  assert.match(huisarts.textContent, /sociaal spreekuur/i);
 
-  assert.doesNotMatch(allContent, /beweegspreekuur|sociaal spreekuur/);
+  const assistent = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    audience: getSurveyEmailAudienceContext(SurveyAudience.ASSISTANT),
+  });
+  assert.match(assistent.textContent, /doktersassistent/i);
+  assert.match(assistent.textContent, /triage/i);
+  assert.match(assistent.textContent, /beweegspreekuur/i);
+  assert.doesNotMatch(assistent.textContent, /sociaal spreekuur/i);
+
+  const welzijn = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    audience: getSurveyEmailAudienceContext(SurveyAudience.SOCIAL_PROFESSIONAL),
+  });
+  assert.match(welzijn.textContent, /welzijnsprofessional/i);
+  assert.match(welzijn.textContent, /sociaal spreekuur/i);
+  assert.doesNotMatch(welzijn.textContent, /beweegspreekuur/i);
+});
+
+test("alleen de automatische opvolging gebruikt herinneringscopy", () => {
+  assert.equal(surveyEmailUsesReminderCopy("initial"), false);
+  assert.equal(surveyEmailUsesReminderCopy("manual-reminder"), false);
+  assert.equal(surveyEmailUsesReminderCopy("scheduled-reminder"), true);
+  assert.equal(surveyEmailUsesReminderCopy("legacy-unresolved-initial"), false);
+  assert.equal(surveyEmailUsesReminderCopy("legacy-unresolved-reminder"), true);
+  assert.throws(() => surveyEmailUsesReminderCopy("onbekend"), /onbekende vragenlijst-verzendmodus/i);
+
+  const audience = getSurveyEmailAudienceContext(SurveyAudience.GP);
+  const opnieuw = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    reminder: surveyEmailUsesReminderCopy("manual-reminder"),
+    audience,
+  });
+  const automatisch = buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    reminder: surveyEmailUsesReminderCopy("scheduled-reminder"),
+    audience,
+  });
+  assert.doesNotMatch(opnieuw.subject, /herinnering/i);
+  assert.match(automatisch.subject, /herinnering/i);
+});
+
+test("een idempotente retry behoudt de copy van de persistente verzendpoging", () => {
+  const audience = getSurveyEmailAudienceContext(SurveyAudience.GP);
+  const buildForPersistedAttempt = (persistedMode: string) => buildSurveyEmail({
+    surveyUrl: "https://wijkconnect.example/vragenlijst/opaque-token",
+    reminder: surveyEmailUsesReminderCopy(persistedMode),
+    audience,
+  });
+
+  assert.deepEqual(buildForPersistedAttempt("manual-reminder"), buildForPersistedAttempt("initial"));
+  assert.notDeepEqual(buildForPersistedAttempt("scheduled-reminder"), buildForPersistedAttempt("initial"));
+});
+
+test("resetten is geblokkeerd zolang een verzending nog onzeker is", () => {
+  assert.equal(surveyDeliveryAttemptBlocksReset(null), false);
+  assert.equal(surveyDeliveryAttemptBlocksReset({ status: "SENT" }), false);
+  assert.equal(surveyDeliveryAttemptBlocksReset({ status: "FAILED" }), false);
+  assert.equal(surveyDeliveryAttemptBlocksReset({ status: "QUEUED" }), true);
+  assert.equal(surveyDeliveryAttemptBlocksReset({ status: "UNCERTAIN" }), true);
 });
 
 test("een verstuurde vragenlijst kan handmatig opnieuw worden gemaild met afkoelperiode", () => {
