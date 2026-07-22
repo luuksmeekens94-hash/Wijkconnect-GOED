@@ -5,7 +5,7 @@ import { formatDateInput } from "@/lib/monitoring";
 import { prisma } from "@/lib/prisma";
 
 export default async function NewMonitoringRegistrationPage() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const referrals = await prisma.referral.findMany({
     where: { monitoringCase: null },
     select: { id: true, caseId: true, createdAt: true },

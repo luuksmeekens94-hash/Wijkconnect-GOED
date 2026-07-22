@@ -27,6 +27,7 @@ import {
   canSendManualSurveyReminder,
   MANUAL_REMINDER_COOLDOWN_MINUTES,
   RECOVER_QUEUED_AFTER_MINUTES,
+  surveyReminderDelayDays,
 } from "@/lib/survey-reminder-policy";
 import { decryptSurveyRecipientEmail, getSurveyAccessToken } from "@/lib/survey-security";
 
@@ -263,9 +264,9 @@ async function createReminderAttempt(
   const claimConditions = mode === "manual-reminder"
     ? [
         { reminderSentAt: null },
-        { reminderSentAt: { lte: manualBefore }, lastDeliveryErrorCode: null },
         { reminderSentAt: { lte: recoverBefore }, lastDeliveryErrorCode: "REMINDER_QUEUED" },
         { reminderSentAt: { lte: recoverBefore }, lastDeliveryErrorCode: "REMINDER_UNCERTAIN" },
+        { reminderSentAt: { lte: manualBefore }, lastDeliveryErrorCode: { not: null } },
       ]
     : [
         { reminderSentAt: null },
@@ -331,9 +332,7 @@ async function claimReminderAttempt(
     return reclaimAttempt(latest, mode, now);
   }
   if (latest?.status === SurveyDeliveryAttemptStatus.SENT) {
-    if (mode === "scheduled-reminder") return null;
-    const acceptedAt = latest.sentAt ?? latest.lastAttemptedAt;
-    if (acceptedAt > new Date(now.getTime() - MANUAL_REMINDER_COOLDOWN_MINUTES * 60 * 1000)) return null;
+    return null;
   }
   return createReminderAttempt(invitation, mode, now);
 }
@@ -789,14 +788,9 @@ export async function applyBrevoWebhookPayload(payload: unknown) {
   return "updated" as const;
 }
 
-function reminderDelayDays() {
-  const parsed = Number.parseInt(process.env.SURVEY_REMINDER_AFTER_DAYS || "4", 10);
-  return Number.isFinite(parsed) && parsed >= 1 && parsed <= 30 ? parsed : 4;
-}
-
 export async function sendDueSurveyReminders(limit = 50) {
   const now = new Date();
-  const sentBefore = new Date(now.getTime() - reminderDelayDays() * 24 * 60 * 60 * 1000);
+  const sentBefore = new Date(now.getTime() - surveyReminderDelayDays() * 24 * 60 * 60 * 1000);
   const recoverBefore = new Date(now.getTime() - RECOVER_QUEUED_AFTER_MINUTES * 60 * 1000);
   const invitations = await prisma.surveyInvitation.findMany({
     where: {

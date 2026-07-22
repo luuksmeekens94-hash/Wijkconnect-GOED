@@ -14,11 +14,12 @@ import {
 } from "@/lib/monitoring";
 import { getMonitoringPeriod } from "@/lib/monitoring-queries";
 import { prisma } from "@/lib/prisma";
+import { patientJourneyDisciplineLabel, patientJourneyOutcomeLabel } from "@/lib/patient-journey";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return new Response("Niet ingelogd", { status: 401 });
-  if (!["ADMIN", "DATA_MANAGER"].includes(session.user.role)) return new Response("Geen toegang", { status: 403 });
+  if (session.user.role !== "ADMIN") return new Response("Geen toegang", { status: 403 });
 
   const from = request.nextUrl.searchParams.get("from") ?? undefined;
   const to = request.nextUrl.searchParams.get("to") ?? undefined;
@@ -27,7 +28,16 @@ export async function GET(request: NextRequest) {
   const period = getMonitoringPeriod(from, to);
   const cases = await prisma.monitoringCase.findMany({
     where: { referralDate: { gte: period.from, lte: period.to }, ...(program ? { program } : {}) },
-    include: { participant: true, socialReasons: true, sourceReferral: { select: { caseId: true } }, appointments: { orderBy: { scheduledAt: "asc" } } },
+    include: {
+      participant: true,
+      socialReasons: true,
+      sourceReferral: { select: { caseId: true } },
+      appointments: { orderBy: { scheduledAt: "asc" } },
+      patientJourneyUpdates: {
+        include: { recordedBy: { select: { organization: true, role: true } } },
+        orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
+      },
+    },
     orderBy: { referralDate: "asc" },
   });
 
@@ -45,6 +55,23 @@ export async function GET(request: NextRequest) {
       assigned_organization: monitoringCase.assignedOrganization ?? "",
       assigned_professional: monitoringCase.assignedProfessional ?? "",
       case_status: monitoringCase.status,
+      journey_update_count: monitoringCase.patientJourneyUpdates.length,
+      journey_last_date: monitoringCase.patientJourneyUpdates.at(-1)?.occurredAt ?? "",
+      journey_last_discipline: monitoringCase.patientJourneyUpdates.at(-1)
+        ? patientJourneyDisciplineLabel(monitoringCase.patientJourneyUpdates.at(-1)!.discipline)
+        : "",
+      journey_last_outcome: monitoringCase.patientJourneyUpdates.at(-1)
+        ? patientJourneyOutcomeLabel(monitoringCase.patientJourneyUpdates.at(-1)!.outcome)
+        : "",
+      journey_last_destination: monitoringCase.patientJourneyUpdates.at(-1)?.destination ?? "",
+      journey_history: monitoringCase.patientJourneyUpdates.map((update) => [
+        update.occurredAt.toISOString().slice(0, 10),
+        patientJourneyDisciplineLabel(update.discipline),
+        patientJourneyOutcomeLabel(update.outcome),
+        update.destination ?? "",
+        update.note ?? "",
+        update.recordedBy.organization,
+      ].join(" | ")).join(" || "),
     };
     if (monitoringCase.appointments.length === 0) {
       rows.push({ ...base, appointment_date: "", appointment_status: "Niet ingepland", outcome: "", follow_up_organization: "", reminder_date: "", feedback_date: "", feedback_recipient: "", feedback_channel: "" });

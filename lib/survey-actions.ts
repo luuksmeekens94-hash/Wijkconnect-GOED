@@ -28,7 +28,7 @@ import {
 import { veznSurveyTemplates } from "@/lib/vezn-survey-templates";
 
 export async function initializeVeznSurveyTemplates() {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole(["ADMIN"]);
   let created = 0;
 
   for (const definition of veznSurveyTemplates) {
@@ -117,7 +117,7 @@ function surveyExpiry(value?: string) {
 }
 
 export async function createSurveyInvitation(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole(["ADMIN"]);
   const parsed = invitationSchema.safeParse({
     templateId: formData.get("templateId"),
     recipientType: formData.get("recipientType"),
@@ -250,7 +250,7 @@ export async function createSurveyInvitation(formData: FormData) {
 }
 
 export async function updateSurveyInvitationStatus(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole(["ADMIN"]);
   const invitationId = String(formData.get("invitationId") ?? "");
   const status = z.literal(SurveyInvitationStatus.CANCELLED).parse(formData.get("status"));
   const changed = await prisma.$transaction(async (transaction) => {
@@ -303,7 +303,7 @@ export async function updateSurveyInvitationStatus(formData: FormData) {
 }
 
 export async function sendPreparedSurveyInvitation(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole(["ADMIN"]);
   const invitationId = z.string().min(1).max(128).parse(formData.get("invitationId"));
 
   let outcome: Awaited<ReturnType<typeof sendSurveyInvitationEmail>>["outcome"];
@@ -326,7 +326,7 @@ export async function sendPreparedSurveyInvitation(formData: FormData) {
 }
 
 export async function resendSurveyInvitation(formData: FormData) {
-  const user = await requireRole(["ADMIN", "DATA_MANAGER"]);
+  const user = await requireRole(["ADMIN"]);
   const invitationId = z.string().min(1).max(128).parse(formData.get("invitationId"));
 
   let outcome: Awaited<ReturnType<typeof sendManualSurveyReminderEmail>>["outcome"];

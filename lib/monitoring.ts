@@ -88,6 +88,7 @@ export const monitoringSocialReasonOptions = [
   { value: MonitoringSocialReason.WORK_INCOME, label: "Werk / inkomen" },
   { value: MonitoringSocialReason.FAMILY, label: "Gezin" },
   { value: MonitoringSocialReason.OTHER, label: "Anders" },
+  { value: MonitoringSocialReason.UNKNOWN, label: "Onduidelijk" },
 ] as const;
 
 export const projectActivityTypeOptions = [

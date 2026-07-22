@@ -19,7 +19,7 @@ export default async function MonitoringRegistrationsPage({
   searchParams: Promise<{ from?: string; to?: string; program?: string; status?: string; q?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const period = getMonitoringPeriod(resolvedSearchParams.from, resolvedSearchParams.to);
   const program = Object.values(MonitoringProgram).includes(resolvedSearchParams.program as MonitoringProgram) ? resolvedSearchParams.program as MonitoringProgram : undefined;
   const status = Object.values(MonitoringCaseStatus).includes(resolvedSearchParams.status as MonitoringCaseStatus) ? resolvedSearchParams.status as MonitoringCaseStatus : undefined;

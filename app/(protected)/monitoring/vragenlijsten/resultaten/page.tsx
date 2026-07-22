@@ -13,7 +13,7 @@ export default async function SurveyResultsPage({
 }: {
   searchParams: Promise<{ templateId?: string; from?: string; to?: string }>;
 }) {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const resolvedSearchParams = await searchParams;
   const period = getMonitoringPeriod(resolvedSearchParams.from, resolvedSearchParams.to);
   const templates = await prisma.surveyTemplate.findMany({

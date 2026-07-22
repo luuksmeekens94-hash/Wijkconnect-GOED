@@ -197,12 +197,12 @@ test("resetten is geblokkeerd zolang een verzending nog onzeker is", () => {
   assert.equal(surveyDeliveryAttemptBlocksReset({ status: "UNCERTAIN" }), true);
 });
 
-test("een verstuurde vragenlijst kan handmatig opnieuw worden gemaild met afkoelperiode", () => {
+test("een vragenlijst krijgt maximaal één succesvolle herinnering", () => {
   const now = new Date("2026-07-17T10:00:00Z");
   const invitation = {
     status: "SENT" as const,
     deliveryStatus: "DELIVERED" as const,
-    sentAt: new Date("2026-07-16T10:00:00Z"),
+    sentAt: new Date("2026-07-09T10:00:00Z"),
     reminderSentAt: null,
     lastDeliveryErrorCode: null,
     completedAt: null,
@@ -210,8 +210,9 @@ test("een verstuurde vragenlijst kan handmatig opnieuw worden gemaild met afkoel
   };
 
   assert.equal(canSendManualSurveyReminder(invitation, now), true);
+  assert.equal(canSendManualSurveyReminder({ ...invitation, sentAt: new Date("2026-07-16T10:00:00Z") }, now), false);
   assert.equal(canSendManualSurveyReminder({ ...invitation, reminderSentAt: new Date("2026-07-17T09:58:00Z") }, now), false);
-  assert.equal(canSendManualSurveyReminder({ ...invitation, reminderSentAt: new Date("2026-07-17T09:54:00Z") }, now), true);
+  assert.equal(canSendManualSurveyReminder({ ...invitation, reminderSentAt: new Date("2026-07-17T09:54:00Z") }, now), false);
   assert.equal(canSendManualSurveyReminder({
     ...invitation,
     reminderSentAt: new Date("2026-07-17T09:59:00Z"),

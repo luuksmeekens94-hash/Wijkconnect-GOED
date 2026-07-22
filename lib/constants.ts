@@ -34,17 +34,17 @@ export const urgencyLabels: Record<Urgency, string> = {
 export const roleLabels: Record<Role, string> = {
   VERWIJZER: "Verwijzer",
   SOCIAAL: "Sociaal professional",
+  PHYSIOTHERAPIST: "Fysiotherapeut",
   ADMIN: "Beheerder",
-  DATA_MANAGER: "Projectbeheerder",
+  DATA_MANAGER: "Praktijkmanager",
   PILOT: "Pilot / meekijken",
 };
 
 export const birthYears = Array.from({ length: 100 }, (_, index) => new Date().getFullYear() - index);
 
-export const favoriteRecipientEmails = [
-  "andrea.olfen@bindkracht10.nl",
-  "margot.vandelft@buurtteamsvolwassenen.nl",
-];
+// Favoriete ontvangers horen uit beheerde gebruikersdata te komen, niet uit
+// hardcoded persoonsgegevens in de applicatiecode.
+export const favoriteRecipientEmails: string[] = [];
 
 export function getThemeLabel(theme: Theme) {
   return themeOptions.find((option) => option.value === theme)?.label ?? theme;

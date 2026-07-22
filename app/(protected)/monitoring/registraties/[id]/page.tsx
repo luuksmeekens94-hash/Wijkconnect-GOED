@@ -19,7 +19,7 @@ import { prisma } from "@/lib/prisma";
 
 export default async function MonitoringRegistrationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const monitoringCase = await prisma.monitoringCase.findUnique({
     where: { id },
     include: {
