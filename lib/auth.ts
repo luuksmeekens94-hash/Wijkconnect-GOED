@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import type { Role } from "@prisma/client";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -97,7 +98,7 @@ export async function requireUser() {
   return session.user;
 }
 
-export async function requireRole(roles: Array<"VERWIJZER" | "SOCIAAL" | "ADMIN" | "DATA_MANAGER" | "PILOT">) {
+export async function requireRole(roles: Role[]) {
   const user = await requireUser();
   if (!roles.includes(user.role)) {
     redirect("/dashboard");

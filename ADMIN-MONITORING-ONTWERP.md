@@ -2,7 +2,7 @@
 
 ## Doel
 
-Deze uitbreiding maakt van WijkConnect naast een verwijsapp ook een beheersbare monitoringsomgeving voor het beweegspreekuur en het sociaal spreekuur. De praktijkmanager kan wekelijks bronregistraties controleren, vragenlijsten voorbereiden en rapportages maken zonder achteraf handmatig percentages te reconstrueren.
+Deze uitbreiding maakt van WijkConnect naast een verwijsapp ook een beheersbare monitoringsomgeving voor het beweegspreekuur en het sociaal spreekuur. De praktijkmanager krijgt één eenvoudige wekelijkse invoer. De admin beheert controles, vragenlijsten, rapportages, exports en instellingen zonder achteraf handmatig percentages te reconstrueren.
 
 De inhoud is gebaseerd op:
 
@@ -22,24 +22,32 @@ De inhoud is gebaseerd op:
 - sociale kaart;
 - exports en auditlog.
 
-### DATA_MANAGER - Projectbeheerder
+### DATA_MANAGER - Praktijkmanager
 
-- registraties en afspraken;
-- wekelijkse controle en afsluiting;
-- vragenlijstuitnodigingen en respons;
-- projectlogboek;
-- rapportages en monitoringexport.
+- snelle patiëntinvoer per geselecteerde week;
+- versleutelde naam- en e-mailregistratie;
+- keuze tussen beweegspreekuur en sociaal spreekuur;
+- aanwezigheid, klachtregio of sociale hulpvraag;
+- de juiste patiëntvragenlijst direct vanuit de invoer versturen;
+- alleen een compact overzicht van patiënten uit de gekozen week.
 
-Deze rol kan geen gebruikers, beveiligingsinstellingen of sociale-kaartitems beheren.
+Deze rol kan geen monitoringdashboard, losse registratiedetails, vragenlijstbeheer, projectlog, rapportages, exports, gebruikers, beveiligingsinstellingen of sociale-kaartitems openen.
 
 ### PILOT - meekijken
 
 - alleen geanonimiseerde, geaggregeerde pilotinformatie;
 - geen patiëntcode, initialen, geboortejaar, notities, details of exports.
 
+### PHYSIOTHERAPIST - Fysiotherapeut
+
+- ziet alleen verschenen patiënten van het beweegspreekuur;
+- kiest een patiënt uit de gekoppelde werklijst;
+- registreert oefeningen/advies, vervolgbeweegspreekuur, eerstelijnsfysiotherapie, sociaal domein, huisarts of een andere vervolgstap;
+- kan een bestemming en korte toelichting toevoegen.
+
 ### VERWIJZER en SOCIAAL
 
-De bestaande verwijsworkflow blijft behouden. Een sociaal professional ziet alleen casussen die aan die persoon zijn toegewezen.
+De bestaande verwijsworkflow blijft technisch behouden voor `VERWIJZER`. `SOCIAAL` landt direct in de eenvoudige patiëntreisomgeving voor verschenen patiënten van het sociaal spreekuur. Daar kan een traject bij Buurtteams of welzijn, een andere instantie, follow-up, huisarts, advies, geen vervolg of onduidelijk worden vastgelegd.
 
 ## Datadefinities
 
@@ -56,25 +64,21 @@ De bestaande verwijsworkflow blijft behouden. Een sociaal professional ziet alle
 
 Percentages worden normaal afgerond. Afgeleide totalen en percentages worden nooit handmatig opgeslagen.
 
-## Pseudonimisering
+## Patiëntkoppeling en versleuteling
 
-De projectbeheerder voert een intern patiëntnummer of andere stabiele lokale referentie in. De server maakt hiervan met HMAC-SHA256 een niet-terugrekenbare projectcode. De ingevoerde bronreferentie wordt niet opgeslagen.
+De praktijkmanager voert naam en e-mailadres één keer in. Beide velden worden op applicatieniveau met AES-256-GCM versleuteld. Een HMAC-fingerprint van de genormaliseerde combinatie naam plus e-mail zorgt dat dezelfde patiënt opnieuw kan worden herkend zonder op leesbare persoonsgegevens te zoeken. De app maakt daarnaast een niet-herleidbare `WC-`projectcode.
 
-Hiervoor is `MONITORING_PSEUDONYM_SECRET` verplicht. Het secret moet:
+Fysiotherapeuten en sociaal professionals typen naam of e-mail niet opnieuw. Zij kiezen de patiënt uit hun eigen rolgebonden werklijst; alle vervolgdata wordt via de interne casus-ID gekoppeld. Dat voorkomt dubbele patiënten en typefouten.
 
-- apart van de database worden opgeslagen;
-- lang en willekeurig zijn;
-- niet tussentijds worden gewijzigd, omdat dezelfde patiënt dan een andere hash krijgt;
-- niet in GitHub of exports terechtkomen.
-
-Naam, BSN en medische details horen niet in de monitoringmodule.
+Naam en e-mail komen niet voor in de monitoringexport. De versleutelde contactvelden worden standaard na 365 dagen gewist; de projectcode en niet-herleidbare onderzoeksdata blijven bruikbaar. `MONITORING_CONTACT_ENCRYPTION_KEY` kan als aparte 32-byte sleutel worden ingesteld en valt anders terug op de bestaande `SURVEY_CONTACT_ENCRYPTION_KEY`. BSN, adres en uitgebreide medische details worden niet opgeslagen.
 
 ## Registratieniveaus
 
 ### Patiënt
 
-- uitsluitend gehashte patiëntcode;
-- geen naam, BSN, adres of geboortedatum.
+- versleutelde naam en e-mail voor de actieve werklijst en vragenlijstverzending;
+- niet-herleidbare projectcode voor analyse en export;
+- geen BSN, adres of geboortedatum.
 
 ### Casus of verwijzing
 
@@ -94,6 +98,15 @@ Naam, BSN en medische details horen niet in de monitoringmodule.
 - geschiktheid voor evaluatie;
 - herinnering bij no-show;
 - datum, ontvanger en kanaal van terugkoppeling.
+
+### Patiëntreis
+
+- discipline fysiotherapie of sociaal domein;
+- vaste vervolgstap uit een rolgebonden keuzelijst;
+- datum van de vervolgstap;
+- optionele ontvangende praktijk, instantie of professional;
+- korte vrije toelichting;
+- vastlegger, organisatie en auditmoment.
 
 ### Weekcontrole
 
@@ -144,7 +157,7 @@ Templates en vragen worden per versie bevroren. Een inhoudelijke aanpassing maak
 - antwoorden en geaggregeerde bevindingen in WijkConnect;
 - automatische verwijdering van versleutelde contactgegevens na de bewaartermijn.
 
-De mailtekst bevat geen spreekuur-, patiënt-, hulpvraag- of diagnosegegevens. Open- en kliktracking staan uit. Resultaten worden pas vanaf vijf antwoorden per vraag getoond; individuele open teksten blijven afgeschermd totdat een aparte redactieflow beschikbaar is.
+De mailtekst maakt zichtbaar of het om het beweegspreekuur of sociaal spreekuur gaat, maar bevat geen patiëntnaam, afspraak, hulpvraag of diagnose. Open- en kliktracking staan uit. Resultaten worden pas vanaf vijf antwoorden per vraag getoond; individuele open teksten blijven afgeschermd totdat een aparte redactieflow beschikbaar is.
 
 ## Projectlogboek
 
@@ -177,6 +190,7 @@ Het rapportagescherm toont per gekozen periode en spreekuur:
 - uitkomsten;
 - klachtregio's;
 - sociale hulpvraagthema's.
+- dekking en uitsplitsing van vervolgstappen in de patiëntreis.
 
 De CSV-export bevat alleen de gehashte patiëntcode. Iedere export wordt in de auditlog vastgelegd en CSV-formule-injectie wordt geneutraliseerd.
 
@@ -188,7 +202,7 @@ De CSV-export bevat alleen de gehashte patiëntcode. Iedere export wordt in de a
 - publieke logininstructies met gedeelde wachtwoorden uit de repository verwijderd;
 - wachtwoord verplicht bij nieuw account;
 - accounts kunnen worden gedeactiveerd;
-- sociaal professionals zien alleen toegewezen casussen;
+- sociaal professionals zien in de bestaande verwijsworkflow alleen toegewezen casussen en in de patiëntreisomgeving alleen verschenen sociaalspreekuurcasussen;
 - PILOT heeft geen persoonsrijke detailtoegang of export;
 - Projectbeheerder heeft geen systeembeheerrechten;
 - surveytokens worden alleen gehasht opgeslagen.
@@ -203,25 +217,23 @@ Alle eerder gebruikte gedeelde wachtwoorden moeten vóór livegang buiten de cod
 4. Voer `npm run db:migrate` eenmalig uit tegen de beoogde database.
 5. Voeg de survey- en Brevo-variabelen uit `.env.example` aan Vercel toe en verifieer SPF, DKIM en DMARC voor het verzenddomein.
 6. Bouw en deploy daarna de applicatie.
-7. Maak voor de praktijkmanager een account met rol `DATA_MANAGER`.
-8. Laad vanuit het vragenlijstcentrum de vijf VEZN-templates.
-9. Leg nieuwe KPI-doelen en verslagperiodes vast onder Projectinstellingen.
-10. Roteer alle eerder gedeelde pilotwachtwoorden.
-11. Voer een functionele acceptatietest uit met fictieve patiëntcodes en testadressen voordat echte registraties worden toegevoegd.
+7. Controleer de drie functionele pilotaccounts voor praktijkmanager, fysio en sociaal spreekuur en deel ieder startwachtwoord afzonderlijk.
+8. Controleer dat alleen de projectbeheerder het bestaande `ADMIN`-account gebruikt.
+9. Laad vanuit het vragenlijstcentrum de vijf VEZN-templates.
+10. Leg nieuwe KPI-doelen en verslagperiodes vast onder Projectinstellingen.
+11. Roteer alle eerder gedeelde pilotwachtwoorden.
+12. Voer een functionele acceptatietest uit met fictieve namen en testadressen voordat echte registraties worden toegevoegd.
 
 Vercel gebruikt `npm run vercel:build`. Alleen wanneer Vercel de omgeving als `production` markeert, worden eerst de goedgekeurde migraties uitgevoerd. Previewdeployments wijzigen geen database en moeten een aparte database of geen `DATABASE_URL` krijgen.
 
-## Beslispunten voor het overleg met De Schakel
+## Verwerkte besluiten uit het overleg met De Schakel
 
-- Welke stabiele interne patiëntreferentie mag de praktijkmanager gebruiken voor hashing?
-- Telt een sociale contactpoging of alleen daadwerkelijk contact voor de 14-dagennorm?
-- Welke complete klachtregio-lijst wordt gebruikt?
-- Welke sociale organisaties en uitkomsten moeten als vaste keuzelijst beschikbaar zijn?
-- Wanneer wordt een casus inhoudelijk afgesloten?
-- Welke terugkoppeling moet naar welke huisarts en binnen welke termijn?
-- Wanneer wordt de patiëntvragenlijst aangeboden?
-- Welk kanaal wordt gebruikt: e-mail, sms, QR-code of een combinatie?
-- Hoeveel reminders zijn toegestaan?
-- Hoe lang worden bronregistraties, surveyantwoorden en open tekst bewaard?
-- Welke doelen en verslagperiode gelden vanaf juli 2026?
-- Begint de structurele registratie in de week van 6 juli of 13 juli 2026?
+- registratie gebeurt standaard aan het einde van iedere week;
+- de week wordt vóór de patiëntinvoer expliciet gekozen;
+- het beweegspreekuur en sociaal spreekuur zitten in dezelfde snelle invoer;
+- bij onduidelijke informatie is steeds een optie `Onduidelijk` beschikbaar;
+- de juiste patiëntvragenlijst kan direct vanuit de registratie worden verstuurd;
+- na zeven dagen volgt maximaal één automatische reminder;
+- fysio en sociaal domein hebben ieder een eigen rolgebonden patiëntreisomgeving;
+- naam en e-mail worden niet opnieuw overgetypt, maar via de interne casus gekoppeld;
+- de CSV combineert spreekuur-, vragenlijststatus- en patiëntreisdata onder de niet-herleidbare patiëntcode.

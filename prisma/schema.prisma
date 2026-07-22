@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   VERWIJZER
   SOCIAAL
+  PHYSIOTHERAPIST
   ADMIN
   DATA_MANAGER
   PILOT
@@ -112,6 +113,34 @@ enum MonitoringSocialReason {
   WORK_INCOME
   FAMILY
   OTHER
+  UNKNOWN
+
+  @@schema("wijkconnect")
+}
+
+enum PatientJourneyDiscipline {
+  PHYSIOTHERAPY
+  SOCIAL
+
+  @@schema("wijkconnect")
+}
+
+enum PatientJourneyOutcome {
+  EXERCISES_AND_ADVICE
+  FOLLOW_UP_MOVEMENT_CLINIC
+  PRIMARY_CARE_PHYSIOTHERAPY
+  REFERRED_TO_SOCIAL_CLINIC
+  REFERRED_TO_SOCIAL_PROFESSIONAL
+  RETURNED_TO_GP
+  NEIGHBORHOOD_TEAM_TRAJECTORY
+  WELFARE_TRAJECTORY
+  REFERRED_TO_OTHER_SOCIAL_ORGANIZATION
+  FOLLOW_UP_SOCIAL_CLINIC
+  ADVICE_OR_INFORMATION_ONLY
+  NO_FOLLOW_UP_NEEDED
+  CONTACT_UNSUCCESSFUL
+  OTHER
+  UNKNOWN
 
   @@schema("wijkconnect")
 }
@@ -296,6 +325,7 @@ model User {
   weeklyReviews          WeeklyReview[]          @relation("WeeklyReviewReviewedBy")
   surveyInvitations      SurveyInvitation[]      @relation("SurveyInvitationCreatedBy")
   projectActivities      ProjectActivity[]       @relation("ProjectActivityCreatedBy")
+  patientJourneyUpdates  PatientJourneyUpdate[]  @relation("PatientJourneyUpdateRecordedBy")
 
   @@schema("wijkconnect")
 }
@@ -423,43 +453,71 @@ model CaseCounter {
 }
 
 model MonitoringParticipant {
-  id            String           @id @default(cuid())
-  pseudonymCode String           @unique
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  cases         MonitoringCase[]
+  id                           String           @id @default(cuid())
+  pseudonymCode                String           @unique
+  identityFingerprint          String?          @unique
+  displayNameEncrypted         String?          @db.Text
+  emailEncrypted               String?          @db.Text
+  contactPermissionConfirmedAt DateTime?
+  contactRetentionUntil        DateTime?
+  contactPurgedAt              DateTime?
+  createdAt                    DateTime         @default(now())
+  updatedAt                    DateTime         @updatedAt
+  cases                        MonitoringCase[]
 
+  @@index([contactRetentionUntil])
   @@schema("wijkconnect")
 }
 
 model MonitoringCase {
-  id                   String                        @id @default(cuid())
-  participantId        String
-  sourceReferralId     String?                       @unique
-  program              MonitoringProgram
-  referralDate         DateTime                      @db.Date
-  referralSource       MonitoringReferralSource
-  referralBasis        MonitoringReferralBasis?
-  complaintCategory    String?
-  helpRequest          String?
-  helpRequestClarity   MonitoringHelpRequestClarity?
-  assignedOrganization String?
-  assignedProfessional String?
-  status               MonitoringCaseStatus          @default(OPEN)
-  closedAt             DateTime?
-  createdById          String
-  createdAt            DateTime                      @default(now())
-  updatedAt            DateTime                      @updatedAt
-  participant          MonitoringParticipant         @relation(fields: [participantId], references: [id])
-  sourceReferral       Referral?                     @relation(fields: [sourceReferralId], references: [id], onDelete: SetNull)
-  createdBy            User                          @relation("MonitoringCaseCreatedBy", fields: [createdById], references: [id])
-  socialReasons        MonitoringCaseSocialReason[]
-  appointments         MonitoringAppointment[]
-  surveyInvitations    SurveyInvitation[]
+  id                    String                        @id @default(cuid())
+  participantId         String
+  sourceReferralId      String?                       @unique
+  program               MonitoringProgram
+  referralDate          DateTime                      @db.Date
+  referralSource        MonitoringReferralSource
+  referralBasis         MonitoringReferralBasis?
+  complaintCategory     String?
+  helpRequest           String?
+  helpRequestClarity    MonitoringHelpRequestClarity?
+  assignedOrganization  String?
+  assignedProfessional  String?
+  status                MonitoringCaseStatus          @default(OPEN)
+  closedAt              DateTime?
+  createdById           String
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  participant           MonitoringParticipant         @relation(fields: [participantId], references: [id])
+  sourceReferral        Referral?                     @relation(fields: [sourceReferralId], references: [id], onDelete: SetNull)
+  createdBy             User                          @relation("MonitoringCaseCreatedBy", fields: [createdById], references: [id])
+  socialReasons         MonitoringCaseSocialReason[]
+  appointments          MonitoringAppointment[]
+  surveyInvitations     SurveyInvitation[]
+  patientJourneyUpdates PatientJourneyUpdate[]
 
   @@index([program, referralDate])
   @@index([status, program])
   @@index([participantId, referralDate])
+  @@schema("wijkconnect")
+}
+
+model PatientJourneyUpdate {
+  id           String                   @id @default(cuid())
+  caseId       String
+  discipline   PatientJourneyDiscipline
+  outcome      PatientJourneyOutcome
+  destination  String?
+  note         String?
+  occurredAt   DateTime                 @db.Date
+  recordedById String
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  case         MonitoringCase           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  recordedBy   User                     @relation("PatientJourneyUpdateRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([caseId, occurredAt])
+  @@index([discipline, outcome, occurredAt])
+  @@index([recordedById, occurredAt])
   @@schema("wijkconnect")
 }
 

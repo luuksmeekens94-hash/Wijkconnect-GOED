@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { ReferralStatus } from "@prisma/client";
 import { StatusBadge } from "@/components/status-badge";
 import { requireUser } from "@/lib/auth";
-import { getFavoriteRecipients, updateReferral } from "@/lib/actions";
-import { getStatusMeta, getThemeLabel, urgencyLabels } from "@/lib/constants";
+import { getFavoriteRecipients } from "@/lib/actions";
+import { getThemeLabel } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 
@@ -30,7 +30,11 @@ export default async function DashboardPage({
   const to = resolvedSearchParams.to ?? "";
 
   if (user.role === "DATA_MANAGER") {
-    redirect("/monitoring");
+    redirect("/monitoring/weekinvoer");
+  }
+
+  if (user.role === "PHYSIOTHERAPIST" || user.role === "SOCIAAL") {
+    redirect("/patientreizen");
   }
 
   if (user.role === "VERWIJZER") {
@@ -131,99 +135,6 @@ export default async function DashboardPage({
               ))}
               {referrals.length === 0 ? <p className="px-5 py-10 text-sm text-slate-500">Nog geen verwijzingen gevonden voor deze filter.</p> : null}
             </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  if (user.role === "SOCIAAL") {
-    const referrals = await prisma.referral.findMany({
-      where: {
-        assignedToId: user.id,
-        ...(query
-          ? {
-              OR: [
-                { caseId: { contains: query } },
-                { patientInitials: { contains: query } },
-                { createdBy: { name: { contains: query } } },
-                { assignedTo: { name: { contains: query } } },
-              ],
-            }
-          : {}),
-      },
-      include: {
-        createdBy: true,
-        assignedTo: true,
-        themes: true,
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    return (
-      <div className="space-y-6">
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Zichtbare casussen</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.length}</p>
-          </div>
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Aan mij toegewezen</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.length}</p>
-          </div>
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Afgerond</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{referrals.filter((item) => item.status === ReferralStatus.COMPLETED).length}</p>
-          </div>
-        </section>
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Sociaal domein overzicht</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Overzicht van casussen</h2>
-              <p className="mt-2 text-sm text-slate-500">Bekijk je eigen toegewezen casussen en terugkoppelingen.</p>
-            </div>
-            <form>
-              <input name="q" defaultValue={query} placeholder="Zoek op casus, verwijzer of behandelaar" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 lg:w-80" />
-            </form>
-          </div>
-          <div className="mt-6 grid gap-4">
-            {referrals.map((referral) => (
-              <div key={referral.id} className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-1">
-                    <Link href={`/verwijzingen/${referral.id}`} className="text-lg font-semibold text-slate-900 hover:text-sky-700">
-                      {referral.caseId}
-                    </Link>
-                    <p className="text-sm text-slate-600">
-                      {referral.patientInitials} ({referral.patientBirthYear}) • {referral.createdBy.name} • {urgencyLabels[referral.urgency]}
-                    </p>
-                    <p className="text-sm text-slate-500">{referral.themes.map((item) => getThemeLabel(item.theme)).join(", ")}</p>
-                    <p className="text-sm text-slate-500">
-                      Toegewezen aan: {referral.assignedTo.name}
-                      {referral.assignedToId === user.id ? " (jij)" : ""}
-                    </p>
-                  </div>
-                  <StatusBadge status={referral.status} />
-                </div>
-                <form action={updateReferral} className="mt-4 grid gap-3 lg:grid-cols-[220px_1fr_220px_150px]">
-                  <input type="hidden" name="referralId" value={referral.id} />
-                  <select name="status" defaultValue={referral.status} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400">
-                    {Object.values(ReferralStatus).map((status) => (
-                      <option key={status} value={status}>
-                        {getStatusMeta(status).label}
-                      </option>
-                    ))}
-                  </select>
-                  <input name="feedback" maxLength={500} placeholder="Terugkoppeling of notitie" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                  <input name="handlerName" maxLength={100} placeholder="Naam behandelaar" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" />
-                  <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-700">
-                    Opslaan
-                  </button>
-                </form>
-              </div>
-            ))}
-            {referrals.length === 0 ? <p className="text-sm text-slate-500">Er zijn nog geen zichtbare verwijzingen gevonden.</p> : null}
           </div>
         </section>
       </div>

@@ -10,7 +10,7 @@ import { getMonitoringDashboardData } from "@/lib/monitoring-queries";
 
 export default async function MonitoringWeeksPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const resolvedSearchParams = await searchParams;
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const selected = resolvedSearchParams.week ? new Date(`${resolvedSearchParams.week}T12:00:00.000Z`) : new Date();
   const weekStart = startOfWeek(Number.isNaN(selected.getTime()) ? new Date() : selected, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });

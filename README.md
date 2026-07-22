@@ -6,11 +6,24 @@ De monitoring ondersteunt onder meer:
 
 - een vaste weekcapaciteit van 6 plekken voor het beweegspreekuur en 4 voor het sociaal spreekuur;
 - ingepland, verschenen, no-show, geannuleerd, open en overboekt per week;
-- wekelijkse controle en afsluiting door `ADMIN` of `DATA_MANAGER`;
+- wekelijkse patiëntinvoer door `DATA_MANAGER`, met controle, rapportage en export uitsluitend door `ADMIN`;
+- snelle weekinvoer met naam, e-mail, verwijzer, spreekuur, aanwezigheid en klacht/hulpvraag;
+- aparte patiëntreisomgevingen voor fysiotherapeuten en sociaal professionals;
 - vijf versieerbare VEZN-vragenlijsten voor patiënten en professionals;
 - beveiligde vragenlijstlinks, Brevo-verzending en één automatische herinnering;
 - bezorgstatus, bounce- en afmeldsuppressie, respons en geaggregeerde resultaten;
 - automatische verwijdering van versleutelde contactgegevens na de bewaartermijn.
+
+## Wekelijkse werkwijze
+
+1. De praktijkmanager logt in met de rol `DATA_MANAGER` en opent **Patiënten deze week**.
+2. De juiste week wordt gekozen voordat patiënten worden toegevoegd.
+3. Naam en e-mail worden één keer versleuteld vastgelegd. WijkConnect koppelt vervolgregistraties daarna via de interne casus-ID.
+4. Bij een verschenen patiënt kan de juiste beweeg- of sociaalspreekuurvragenlijst direct worden verstuurd.
+5. Een niet-ingevulde vragenlijst krijgt na zeven dagen maximaal één automatische herinnering.
+6. Een fysiotherapeut (`PHYSIOTHERAPIST`) of sociaal professional (`SOCIAAL`) kiest de patiënt in de eigen eenvoudige omgeving en registreert de vervolgstap met een dropdown en korte toelichting.
+7. Alleen de beheerder (`ADMIN`) kan monitoring, vragenlijstbeheer, rapportages, exports, gebruikers en projectinstellingen openen.
+8. De monitoringexport voegt spreekuur- en patiëntreisdata samen zonder naam of e-mailadres op te nemen.
 
 De functionele en privacykeuzes staan uitgebreider in [ADMIN-MONITORING-ONTWERP.md](./ADMIN-MONITORING-ONTWERP.md).
 
@@ -44,7 +57,7 @@ Deze opdracht voert alleen bij `VERCEL_ENV=production` eerst `npm run db:migrate
 
 ## Vragenlijsten verzenden via Brevo
 
-Brevo wordt uitsluitend als transactionele e-mailprovider gebruikt. De antwoorden en rapportages blijven in WijkConnect. Brevo ontvangt alleen het e-mailadres, de neutrale e-mailtekst en een technische correlatiecode; de mail noemt geen patiënt, afspraak, spreekuur, hulpvraag of diagnose.
+Brevo wordt uitsluitend als transactionele e-mailprovider gebruikt. De antwoorden en rapportages blijven in WijkConnect. Brevo ontvangt alleen het e-mailadres, de doelgroepgerichte e-mailtekst en een technische correlatiecode. De mail maakt het betreffende spreekuur herkenbaar, maar noemt geen patiëntnaam, afspraak, hulpvraag of diagnose.
 
 ### Eenmalige inrichting
 
@@ -69,12 +82,13 @@ Voorbeeld van de webhookconfiguratie:
 
 Vercel roept dagelijks om 08:00 UTC `/api/cron/survey-reminders` aan. De taak:
 
-- verstuurt maximaal één herinnering na `SURVEY_REMINDER_AFTER_DAYS` dagen;
+- verstuurt maximaal één herinnering na precies 7 dagen;
 - slaat geen open- of kliktracking op;
 - wist versleutelde e-mailadressen na de ingestelde contactbewaartermijn;
+- wist versleutelde patiëntnamen en -e-mails standaard na 365 dagen (`MONITORING_CONTACT_RETENTION_DAYS`);
 - bewaart alleen fingerprint, suppressiestatus, antwoorden en noodzakelijke audit- en bezorgmetadata.
 
-De verzendroute vereist een ingelogde `ADMIN` of `DATA_MANAGER`. Een patiëntuitnodiging kan alleen bij een daadwerkelijk bezochte, evaluatiegeschikte afspraak worden aangemaakt. Een professional ontvangt per template maximaal één uitnodiging per kalenderkwartaal.
+De praktijkmanager kan tijdens de wekelijkse invoer direct de juiste patiëntvragenlijst versturen. Los vragenlijstbeheer en handmatig opnieuw aanbieden zijn uitsluitend beschikbaar voor `ADMIN`. Een patiëntuitnodiging kan alleen bij een daadwerkelijk bezochte, evaluatiegeschikte afspraak worden aangemaakt. Een professional ontvangt per template maximaal één uitnodiging per kalenderkwartaal.
 
 ## Adminwachtwoord eenmalig herstellen
 

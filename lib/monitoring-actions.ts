@@ -24,7 +24,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const monitoringRoles = ["ADMIN", "DATA_MANAGER"] as const;
+const monitoringRoles = ["ADMIN"] as const;
 
 function parseDateOnly(value: string) {
   const parsed = new Date(`${value}T12:00:00.000Z`);

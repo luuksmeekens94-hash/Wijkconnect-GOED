@@ -107,7 +107,7 @@ function recipientEmailLabel(recipient: { emailEncrypted: string | null } | null
 }
 
 export default async function SurveyCenterPage({ searchParams }: SurveyCenterPageProps) {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const emailDeliveryConfigured = isBrevoConfigured();
   const campaignPeriods = surveyCampaignPeriodOptions();
   const currentCampaignPeriod = surveyCampaignPeriodForDate(new Date());

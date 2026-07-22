@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, BookOpenCheck, CalendarCheck, ClipboardList, FileQuestion, FileSpreadsheet, LayoutDashboard, ListChecks, MapPinned, Settings, Shield } from "lucide-react";
+import { BarChart3, BookOpenCheck, CalendarCheck, ClipboardList, FileQuestion, FileSpreadsheet, LayoutDashboard, ListChecks, MapPinned, Settings, Shield, UserRoundPlus, Waypoints } from "lucide-react";
 import { Role } from "@prisma/client";
 import { NotificationBell } from "@/components/notification-bell";
 import { LogoutButton } from "@/components/logout-button";
@@ -13,11 +13,15 @@ const navByRole: Record<Role, Array<{ href: string; label: string; icon: typeof 
     { href: "/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
   ],
   SOCIAAL: [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
+    { href: "/patientreizen", label: "Patiëntreizen", icon: Waypoints },
+  ],
+  PHYSIOTHERAPIST: [
+    { href: "/patientreizen", label: "Patiëntreizen", icon: Waypoints },
   ],
   ADMIN: [
     { href: "/monitoring", label: "Projectmonitoring", icon: BarChart3 },
+    { href: "/monitoring/weekinvoer", label: "Wekelijkse patiëntinvoer", icon: UserRoundPlus },
+    { href: "/patientreizen", label: "Patiëntreizen", icon: Waypoints },
     { href: "/monitoring/weken", label: "Weekregistratie", icon: CalendarCheck },
     { href: "/monitoring/registraties", label: "Registraties", icon: ListChecks },
     { href: "/monitoring/vragenlijsten", label: "Vragenlijsten", icon: FileQuestion },
@@ -29,18 +33,18 @@ const navByRole: Record<Role, Array<{ href: string; label: string; icon: typeof 
     { href: "/admin/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
   ],
   DATA_MANAGER: [
-    { href: "/monitoring", label: "Dashboard", icon: BarChart3 },
-    { href: "/monitoring/weken", label: "Weekregistratie", icon: CalendarCheck },
-    { href: "/monitoring/registraties", label: "Registraties", icon: ListChecks },
-    { href: "/monitoring/registraties/nieuw", label: "Nieuwe registratie", icon: ClipboardList },
-    { href: "/monitoring/vragenlijsten", label: "Vragenlijsten", icon: FileQuestion },
-    { href: "/monitoring/projectlog", label: "Projectlog", icon: BookOpenCheck },
-    { href: "/monitoring/rapportages", label: "Rapportages", icon: FileSpreadsheet },
+    { href: "/monitoring/weekinvoer", label: "Patiënten deze week", icon: UserRoundPlus },
   ],
   PILOT: [
     { href: "/dashboard", label: "Pilotoverzicht", icon: Shield },
     { href: "/sociale-kaart", label: "Sociale kaart", icon: MapPinned },
   ],
+};
+
+const operationalRoleHeadings: Partial<Record<Role, string>> = {
+  DATA_MANAGER: "Patiënten van deze week registreren",
+  PHYSIOTHERAPIST: "Vervolg na het beweegspreekuur",
+  SOCIAAL: "Vervolg na het sociaal spreekuur",
 };
 
 export async function AppShell({
@@ -50,6 +54,31 @@ export async function AppShell({
   user: { id: string; name?: string | null; email?: string | null; role: Role; organization: string };
   children: React.ReactNode;
 }) {
+  const operationalHeading = operationalRoleHeadings[user.role];
+
+  if (operationalHeading) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_38%),linear-gradient(180deg,_#f8fbff_0%,_#eef5fb_100%)]">
+        <div className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6">
+          <header className="mb-6 rounded-[2rem] border border-white/80 bg-white/95 px-5 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.35)] sm:px-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-600">{APP_NAME}</p>
+                <h1 className="mt-1 text-xl font-semibold text-slate-900 sm:text-2xl">{operationalHeading}</h1>
+                <p className="mt-1 text-sm text-slate-500">{user.name} · {user.organization}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <span className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">{roleLabels[user.role]}</span>
+                <LogoutButton />
+              </div>
+            </div>
+          </header>
+          <main>{children}</main>
+        </div>
+      </div>
+    );
+  }
+
   const unreadCount = await prisma.notification.count({
     where: { userId: user.id, readAt: null },
   });

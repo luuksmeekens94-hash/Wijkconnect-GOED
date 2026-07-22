@@ -11,7 +11,7 @@ De app is **nog niet klaar om zonder aanvullende maatregelen als volledig produc
 - De app draait via Vercel over HTTPS.
 - Inloggen verloopt via `next-auth`.
 - Wachtwoorden worden gehasht met `bcrypt`.
-- Toegang is rolgebaseerd: verwijzer, sociaal professional en admin.
+- Toegang is rolgebaseerd: verwijzer, sociaal professional, fysiotherapeut, praktijkmanager en admin.
 - Er is een auditlog voor belangrijke acties zoals login en exports.
 - Alleen admins kunnen exports downloaden van verwijzingen en terugkoppelingen.
 
@@ -27,6 +27,8 @@ De huidige app slaat onder meer de volgende gegevens op:
 - notities/toelichting
 - statusupdates en terugkoppelingen
 - naam, e-mail en organisatie van gebruikers
+- versleutelde patiëntnaam en e-mail voor de wekelijkse werklijst en vragenlijstverzending
+- rolgebonden vervolgstappen in de patiëntreis
 
 ## Waar gaat de data heen
 
@@ -53,6 +55,7 @@ Je moet er ook eerlijk bij zeggen:
 
 - Er staan nog beveiligingsverbeteringen open voordat dit sterk genoeg is voor reguliere productie-inzet.
 - Gegevens zoals notities en telefoonnummer worden wel opgeslagen, maar niet veldniveau-versleuteld door de applicatie zelf.
+- Patiëntnaam en e-mail zijn wel veldniveau-versleuteld; korte vrije patiëntreisnotities niet en moeten daarom geen onnodige medische details bevatten.
 - Exports maken lokale kopieën van data en vragen daarom extra zorg in gebruik.
 - Organisatorische randvoorwaarden zoals afspraken over eigenaarschap, bewaartermijnen, exportgebruik en verwerkersafspraken moeten expliciet geregeld worden.
 
@@ -65,6 +68,7 @@ Gebruik de app in deze fase alleen onder de volgende voorwaarden:
 - Zet geen overbodige medische details in vrije tekst.
 - Spreek af wie admin is en wie exports mag maken.
 - Spreek af dat exports alleen beveiligd worden opgeslagen en gedeeld.
+- Gebruik voor fysiotherapeuten de rol `PHYSIOTHERAPIST`, voor sociaalspreekuurprofessionals `SOCIAAL` en voor de praktijkmanager `DATA_MANAGER`.
 - Positioneer de app als pilotinstrument, niet als definitief product.
 
 ## Antwoord op de vraag: "Kan dit in deze pilotvorm?"

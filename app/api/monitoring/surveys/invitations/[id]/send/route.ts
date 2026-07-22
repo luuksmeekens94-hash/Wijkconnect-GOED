@@ -8,7 +8,7 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Niet ingelogd" }, { status: 401 });
-  if (!["ADMIN", "DATA_MANAGER"].includes(session.user.role)) {
+  if (session.user.role !== "ADMIN") {
     return Response.json({ error: "Geen toegang" }, { status: 403 });
   }
   if (!verifySameOrigin(request)) {

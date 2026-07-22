@@ -27,7 +27,7 @@ export default async function MonitoringDashboardPage({
   searchParams: Promise<{ from?: string; to?: string; program?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const program = Object.values(MonitoringProgram).includes(resolvedSearchParams.program as MonitoringProgram)
     ? (resolvedSearchParams.program as MonitoringProgram)
     : undefined;

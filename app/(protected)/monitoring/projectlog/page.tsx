@@ -5,7 +5,7 @@ import { createProjectActivity, toggleProjectActivity } from "@/lib/monitoring-a
 import { prisma } from "@/lib/prisma";
 
 export default async function ProjectLogPage() {
-  await requireRole(["ADMIN", "DATA_MANAGER"]);
+  await requireRole(["ADMIN"]);
   const activities = await prisma.projectActivity.findMany({ orderBy: [{ completed: "asc" }, { activityDate: "desc" }], take: 200 });
   const now = new Date();
 
